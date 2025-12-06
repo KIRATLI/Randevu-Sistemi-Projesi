@@ -1,0 +1,11 @@
+# Ignore database since merging would be a nightmare
+db.sqlite3
+
+# Ignore visual studio data
+.vs
+
+# Ignore Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+!.gitignore

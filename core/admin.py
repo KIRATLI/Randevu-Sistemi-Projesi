@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import CustomUser, Musaitlik, Randevu
+from core.models import CustomUser, Availability, Appointment
 
-# Oluşturduğumuz tabloları admin panelinde görünür yapıyoruz
+# We display the models created in models.py in the admin panel
 admin.site.register(CustomUser)
-admin.site.register(Musaitlik)
-admin.site.register(Randevu)
+admin.site.register(Availability)
+admin.site.register(Appointment)

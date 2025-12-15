@@ -12,6 +12,7 @@ export default function DashboardLayout({ children, userRole }) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0)
   const [profile, setProfile] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     loadUnreadCount()
@@ -109,7 +110,17 @@ export default function DashboardLayout({ children, userRole }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              {/* Hamburger Menu Button - Mobile Only */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden mr-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                aria-label="Menüyü aç/kapat"
+              >
+                <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
                 Ankara Üniversitesi
               </h1>
             </div>
@@ -248,14 +259,40 @@ export default function DashboardLayout({ children, userRole }) {
         </div>
       </nav>
 
-      <div className="flex">
+      <div className="flex relative">
+        {/* Mobile Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="w-64 bg-white dark:bg-gray-800 min-h-screen shadow-sm">
+        <aside className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          w-64 bg-white dark:bg-gray-800 min-h-screen shadow-sm
+          transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
+          <div className="p-4 lg:hidden flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Menü</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              aria-label="Menüyü kapat"
+            >
+              <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           <nav className="p-4 space-y-2">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={() => setSidebarOpen(false)}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
                   location.pathname === item.path
                     ? 'bg-blue-600 text-white'
@@ -270,7 +307,7 @@ export default function DashboardLayout({ children, userRole }) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full lg:w-auto">
           {children}
         </main>
       </div>

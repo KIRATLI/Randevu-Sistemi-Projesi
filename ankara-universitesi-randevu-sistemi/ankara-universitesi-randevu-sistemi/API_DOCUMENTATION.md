@@ -1,5 +1,7 @@
 # Ankara Üniversitesi Randevu Sistemi - Backend API Dokümantasyonu
 
+> **Not:** Frontend entegrasyonu için [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) dosyasına bakın.
+
 ## 📋 İçindekiler
 1. [Genel Bilgiler](#genel-bilgiler)
 2. [Authentication](#authentication)
@@ -28,12 +30,17 @@ Tüm API response'ları şu formatta olmalıdır:
 
 ```json
 {
-  "success": true/false,
-  "data": {...}, // veya array
+  "success": true,
+  "data": {},
   "message": "İşlem mesajı",
   "error": "Hata mesajı (varsa)"
 }
 ```
+
+**Not:** 
+- `success`: `true` veya `false` boolean değeri
+- `data`: Object veya Array olabilir
+- `error`: Sadece hata durumunda gönderilir
 
 ### Kullanıcı Rolleri
 - `student` - Öğrenci
@@ -1367,4 +1374,3 @@ Tüm input'lar backend'de validate edilmeli:
 
 **Son Güncelleme:** 15 Aralık 2025  
 **Versiyon:** 1.0.0
-

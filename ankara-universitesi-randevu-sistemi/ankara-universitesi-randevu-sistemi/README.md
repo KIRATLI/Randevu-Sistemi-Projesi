@@ -70,12 +70,20 @@ npm run build
 
 Backend henüz hazır olmadığı için, `src/utils/api.js` dosyasında mock API fonksiyonları bulunmaktadır. Gerçek backend hazır olduğunda bu dosya güncellenecektir.
 
+**Backend entegrasyonu için:** `INTEGRATION_GUIDE.md` dosyasına bakın.
+
 ## 📝 Notlar
 
 - Bu proje şu an frontend skeleton olarak hazırlanmıştır
 - Tüm sayfalar temel yapı olarak eklenmiştir
 - Mock data kullanılmaktadır
 - Backend entegrasyonu için hazırdır
+
+## 📚 Dokümantasyon
+
+- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - Backend API dokümantasyonu (tüm endpoint'ler, request/response formatları)
+- **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Frontend-Backend entegrasyon kılavuzu
+- **[DEPLOY.md](./DEPLOY.md)** - Vercel deployment kılavuzu
 
 ## 🔐 Örnek Kullanıcılar (Mock)
 

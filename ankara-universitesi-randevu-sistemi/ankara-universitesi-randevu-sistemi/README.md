@@ -83,7 +83,6 @@ Backend henüz hazır olmadığı için, `src/utils/api.js` dosyasında mock API
 
 - **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - Backend API dokümantasyonu (tüm endpoint'ler, request/response formatları)
 - **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Frontend-Backend entegrasyon kılavuzu
-- **[DEPLOY.md](./DEPLOY.md)** - Vercel deployment kılavuzu
 
 ## 🔐 Örnek Kullanıcılar (Mock)
 

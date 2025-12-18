@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Giriş Yap</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding-top: 50px; }
+        form { border: 1px solid #ccc; padding: 20px; border-radius: 10px; width: 300px; }
+        input { width: 90%; padding: 10px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        .error { color: red; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <form method="POST">
+        <h2 style="text-align:center">Giriş Yap</h2>
+
+        {% if messages %}
+            {% for message in messages %}
+                <p class="error">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+
+        {% csrf_token %}
+        
+        <label>Kullanıcı Adı:</label>
+        <input type="text" name="username" placeholder="Kullanıcı adınızı girin" required>
+        
+        <label>Şifre:</label>
+        <input type="password" name="password" placeholder="Şifrenizi girin" required>
+        
+        <button type="submit">Giriş Yap</button>
+    </form>
+
+</body>
+</html>

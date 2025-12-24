@@ -79,6 +79,9 @@ export default function DashboardLayout({ children, userRole }) {
           { path: '/student/academicians', label: 'Akademisyenler', icon: '👨‍🏫' },
           { path: '/student/appointments', label: 'Randevularım', icon: '📅' },
           { path: '/student/messages', label: 'Mesajlar', icon: '💬' },
+          { path: '/student/history', label: 'Randevu Geçmişi', icon: '📋' },
+          { path: '/student/notification-settings', label: 'Bildirim Tercihleri', icon: '🔔' },
+          { path: '/student/support', label: 'Destek & Şikayet', icon: '🎫' },
           { path: '/student/settings', label: 'Ayarlar', icon: '⚙️' },
         ]
       case 'academician':
@@ -88,11 +91,21 @@ export default function DashboardLayout({ children, userRole }) {
           { path: '/academician/appointments', label: 'Randevular', icon: '📅' },
           { path: '/academician/students', label: 'Öğrenciler', icon: '👨‍🎓' },
           { path: '/academician/messages', label: 'Mesajlar', icon: '💬' },
+          { path: '/academician/support', label: 'Destek & İstek', icon: '🎫' },
         ]
       case 'admin':
         return [
           { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
           { path: '/admin/users', label: 'Kullanıcılar', icon: '👥' },
+          { path: '/admin/faculties', label: 'Fakülteler', icon: '🏛️' },
+          { path: '/admin/departments', label: 'Bölümler', icon: '📚' },
+          { path: '/admin/appointments', label: 'Randevular', icon: '📅' },
+          { path: '/admin/settings', label: 'Sistem Ayarları', icon: '⚙️' },
+          { path: '/admin/announcements', label: 'Duyurular', icon: '📢' },
+          { path: '/admin/notifications', label: 'Toplu Bildirim', icon: '🔔' },
+          { path: '/admin/calendar', label: 'Takvim', icon: '📅' },
+          { path: '/admin/email-templates', label: 'Email Şablonları', icon: '📧' },
+          { path: '/admin/tickets', label: 'Destek Talepleri', icon: '🎫' },
           { path: '/admin/reports', label: 'Raporlar', icon: '📈' },
           { path: '/admin/messages', label: 'Mesajlar', icon: '💬' },
         ]
@@ -293,11 +306,10 @@ export default function DashboardLayout({ children, userRole }) {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
-                  location.pathname === item.path
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${location.pathname === item.path
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>

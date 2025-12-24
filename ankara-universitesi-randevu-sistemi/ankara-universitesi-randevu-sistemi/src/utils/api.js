@@ -338,6 +338,238 @@ let mockUsers = [
 
 let userIdCounter = mockUsers.length + 1
 
+// Mock Faculties
+let mockFaculties = [
+  {
+    id: 1,
+    name: 'Mühendislik Fakültesi',
+    code: 'MF',
+    dean: 'Prof. Dr. Ayşe Demir',
+    email: 'muhendislik@ankara.edu.tr',
+    phone: '+90 312 XXX XX 01',
+    building: 'A Blok',
+    departmentCount: 5,
+    studentCount: 1250,
+    academicianCount: 85,
+    established: '1950',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 2,
+    name: 'Fen Fakültesi',
+    code: 'FF',
+    dean: 'Prof. Dr. Mehmet Kaya',
+    email: 'fen@ankara.edu.tr',
+    phone: '+90 312 XXX XX 02',
+    building: 'B Blok',
+    departmentCount: 4,
+    studentCount: 890,
+    academicianCount: 62,
+    established: '1955',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 3,
+    name: 'İktisadi ve İdari Bilimler Fakültesi',
+    code: 'İİBF',
+    dean: 'Prof. Dr. Zeynep Yılmaz',
+    email: 'iibf@ankara.edu.tr',
+    phone: '+90 312 XXX XX 03',
+    building: 'C Blok',
+    departmentCount: 6,
+    studentCount: 1450,
+    academicianCount: 95,
+    established: '1960',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 4,
+    name: 'Tıp Fakültesi',
+    code: 'TF',
+    dean: 'Prof. Dr. Ali Öztürk',
+    email: 'tip@ankara.edu.tr',
+    phone: '+90 312 XXX XX 04',
+    building: 'D Blok',
+    departmentCount: 8,
+    studentCount: 980,
+    academicianCount: 125,
+    established: '1945',
+    status: 'active',
+    createdAt: '2020-01-01'
+  }
+]
+
+let facultyIdCounter = mockFaculties.length + 1
+
+// Mock Departments
+let mockDepartments = [
+  {
+    id: 1,
+    name: 'Bilgisayar Mühendisliği',
+    code: 'BM',
+    facultyId: 1,
+    facultyName: 'Mühendislik Fakültesi',
+    head: 'Prof. Dr. Ayşe Demir',
+    email: 'bilgisayar@ankara.edu.tr',
+    phone: '+90 312 XXX XX 11',
+    office: 'A-204',
+    studentCount: 320,
+    academicianCount: 18,
+    established: '1985',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 2,
+    name: 'Yazılım Mühendisliği',
+    code: 'YM',
+    facultyId: 1,
+    facultyName: 'Mühendislik Fakültesi',
+    head: 'Doç. Dr. Mehmet Kaya',
+    email: 'yazilim@ankara.edu.tr',
+    phone: '+90 312 XXX XX 12',
+    office: 'A-301',
+    studentCount: 280,
+    academicianCount: 15,
+    established: '2010',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 3,
+    name: 'Elektrik-Elektronik Mühendisliği',
+    code: 'EEM',
+    facultyId: 1,
+    facultyName: 'Mühendislik Fakültesi',
+    head: 'Prof. Dr. Can Öztürk',
+    email: 'elektrik@ankara.edu.tr',
+    phone: '+90 312 XXX XX 13',
+    office: 'A-105',
+    studentCount: 290,
+    academicianCount: 20,
+    established: '1970',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 4,
+    name: 'Makine Mühendisliği',
+    code: 'MM',
+    facultyId: 1,
+    facultyName: 'Mühendislik Fakültesi',
+    head: 'Prof. Dr. Elif Yıldız',
+    email: 'makine@ankara.edu.tr',
+    phone: '+90 312 XXX XX 14',
+    office: 'A-201',
+    studentCount: 250,
+    academicianCount: 17,
+    established: '1952',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 5,
+    name: 'İnşaat Mühendisliği',
+    code: 'İM',
+    facultyId: 1,
+    facultyName: 'Mühendislik Fakültesi',
+    head: 'Prof. Dr. Burak Şen',
+    email: 'insaat@ankara.edu.tr',
+    phone: '+90 312 XXX XX 15',
+    office: 'A-101',
+    studentCount: 110,
+    academicianCount: 15,
+    established: '1955',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 6,
+    name: 'Matematik',
+    code: 'MAT',
+    facultyId: 2,
+    facultyName: 'Fen Fakültesi',
+    head: 'Prof. Dr. Selin Çelik',
+    email: 'matematik@ankara.edu.tr',
+    phone: '+90 312 XXX XX 21',
+    office: 'B-301',
+    studentCount: 180,
+    academicianCount: 14,
+    established: '1956',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 7,
+    name: 'Fizik',
+    code: 'FIZ',
+    facultyId: 2,
+    facultyName: 'Fen Fakültesi',
+    head: 'Prof. Dr. Ahmet Aydın',
+    email: 'fizik@ankara.edu.tr',
+    phone: '+90 312 XXX XX 22',
+    office: 'B-201',
+    studentCount: 150,
+    academicianCount: 12,
+    established: '1957',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 8,
+    name: 'Kimya',
+    code: 'KIM',
+    facultyId: 2,
+    facultyName: 'Fen Fakültesi',
+    head: 'Prof. Dr. Fatma Kara',
+    email: 'kimya@ankara.edu.tr',
+    phone: '+90 312 XXX XX 23',
+    office: 'B-101',
+    studentCount: 140,
+    academicianCount: 11,
+    established: '1958',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 9,
+    name: 'İktisat',
+    code: 'IKT',
+    facultyId: 3,
+    facultyName: 'İktisadi ve İdari Bilimler Fakültesi',
+    head: 'Prof. Dr. Deniz Korkmaz',
+    email: 'iktisat@ankara.edu.tr',
+    phone: '+90 312 XXX XX 31',
+    office: 'C-401',
+    studentCount: 350,
+    academicianCount: 22,
+    established: '1961',
+    status: 'active',
+    createdAt: '2020-01-01'
+  },
+  {
+    id: 10,
+    name: 'İşletme',
+    code: 'ISL',
+    facultyId: 3,
+    facultyName: 'İktisadi ve İdari Bilimler Fakültesi',
+    head: 'Prof. Dr. Emre Yılmaz',
+    email: 'isletme@ankara.edu.tr',
+    phone: '+90 312 XXX XX 32',
+    office: 'C-301',
+    studentCount: 420,
+    academicianCount: 28,
+    established: '1962',
+    status: 'active',
+    createdAt: '2020-01-01'
+  }
+]
+
+let departmentIdCounter = mockDepartments.length + 1
+
 let mockProfiles = {
   1: {
     id: 1,
@@ -395,7 +627,7 @@ let mockProfiles = {
 const fakeFetch = async (endpoint, data = null, method = 'GET') => {
   // Simulate network delay
   await delay(500)
-  
+
   // Mock responses based on endpoint
   const responses = {
     '/api/login': {
@@ -485,7 +717,7 @@ const fakeFetch = async (endpoint, data = null, method = 'GET') => {
     },
     '/api/messages/unread-count': {
       success: true,
-      count: mockMessages.filter(msg => 
+      count: mockMessages.filter(msg =>
         !msg.read && msg.receiverId === (data?.userId || 1)
       ).length
     },
@@ -535,7 +767,7 @@ const fakeFetch = async (endpoint, data = null, method = 'GET') => {
     },
     '/api/users/search': {
       success: true,
-      data: mockUsers.filter(u => 
+      data: mockUsers.filter(u =>
         u.name.toLowerCase().includes(data?.query?.toLowerCase() || '') ||
         u.email.toLowerCase().includes(data?.query?.toLowerCase() || '')
       )
@@ -846,7 +1078,7 @@ const fakeFetch = async (endpoint, data = null, method = 'GET') => {
     } : { success: false },
     '/api/notifications/unread-count': {
       success: true,
-      count: mockNotifications.filter(n => 
+      count: mockNotifications.filter(n =>
         !n.read && n.userId === (data?.userId || 1)
       ).length
     },
@@ -981,6 +1213,42 @@ const fakeFetch = async (endpoint, data = null, method = 'GET') => {
       success: true,
       message: `Mesaj ${data?.targetAudience === 'all' ? 'tüm kullanıcılara' : data?.targetAudience + ' kullanıcılarına'} gönderildi`,
       sentCount: data?.targetAudience === 'all' ? 250 : data?.targetAudience === 'student' ? 205 : 45
+    },
+    // Faculties
+    '/api/faculties': method === 'GET' ? {
+      success: true,
+      data: mockFaculties,
+      total: mockFaculties.length
+    } : method === 'POST' ? {
+      success: true,
+      message: 'Fakülte oluşturuldu',
+      data: { id: facultyIdCounter++, ...data, createdAt: new Date().toISOString(), status: 'active' }
+    } : { success: false },
+    '/api/faculties/update': {
+      success: true,
+      message: 'Fakülte güncellendi'
+    },
+    '/api/faculties/delete': {
+      success: true,
+      message: 'Fakülte silindi'
+    },
+    // Departments
+    '/api/departments': method === 'GET' ? {
+      success: true,
+      data: mockDepartments,
+      total: mockDepartments.length
+    } : method === 'POST' ? {
+      success: true,
+      message: 'Bölüm oluşturuldu',
+      data: { id: departmentIdCounter++, ...data, createdAt: new Date().toISOString(), status: 'active' }
+    } : { success: false },
+    '/api/departments/update': {
+      success: true,
+      message: 'Bölüm güncellendi'
+    },
+    '/api/departments/delete': {
+      success: true,
+      message: 'Bölüm silindi'
     }
   }
 
@@ -997,14 +1265,14 @@ const generateTimeSlots = (date, academicianId = 1) => {
   for (let hour = startHour; hour < endHour; hour++) {
     for (let minute = 0; minute < 60; minute += slotDuration) {
       const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-      
+
       // Check if slot is booked
       const isBooked = mockAppointments.some(
-        apt => apt.academicianId === academicianId && 
-               apt.date === date && 
-               apt.time === time &&
-               apt.status !== 'cancelled' &&
-               apt.status !== 'rejected'
+        apt => apt.academicianId === academicianId &&
+          apt.date === date &&
+          apt.time === time &&
+          apt.status !== 'cancelled' &&
+          apt.status !== 'rejected'
       )
 
       slots.push({
@@ -1020,11 +1288,11 @@ const generateTimeSlots = (date, academicianId = 1) => {
 const generateAvailableDates = (academicianId = 1, month, year) => {
   const dates = []
   const daysInMonth = new Date(year, month, 0).getDate()
-  
+
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month - 1, day)
     const dayOfWeek = date.getDay()
-    
+
     // Skip weekends for now (simple logic)
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       // Skip past dates
@@ -1033,7 +1301,7 @@ const generateAvailableDates = (academicianId = 1, month, year) => {
       }
     }
   }
-  
+
   return dates
 }
 
@@ -1042,11 +1310,11 @@ export const api = {
   // Auth
   login: (data) => fakeFetch('/api/login', data, 'POST'),
   register: (data) => fakeFetch('/api/register', data, 'POST'),
-  
+
   // Academicians
   getAcademicians: () => fakeFetch('/api/academicians'),
   getAcademician: (id) => fakeFetch(`/api/academicians/${id}`),
-  
+
   // Appointments
   getAppointments: (filters) => fakeFetch('/api/appointments', filters),
   getAppointment: (id) => fakeFetch(`/api/appointments/${id}`),
@@ -1055,7 +1323,7 @@ export const api = {
   approveAppointment: (id) => fakeFetch('/api/appointments/approve', { id }, 'POST'),
   rejectAppointment: (id, reason) => fakeFetch('/api/appointments/reject', { id, reason }, 'POST'),
   cancelAppointment: (id, reason) => fakeFetch('/api/appointments/cancel', { id, reason }, 'POST'),
-  
+
   // Messages
   getMessages: (userId) => fakeFetch('/api/messages', { userId }),
   getMessageThread: (threadId) => fakeFetch('/api/messages/thread', { threadId }),
@@ -1063,17 +1331,17 @@ export const api = {
   markMessageAsRead: (messageId) => fakeFetch('/api/messages/mark-read', { messageId }, 'POST'),
   deleteMessage: (messageId) => fakeFetch('/api/messages/delete', { messageId }, 'DELETE'),
   getUnreadCount: (userId) => fakeFetch('/api/messages/unread-count', { userId }),
-  
+
   // Schedule (for academicians)
   getSchedule: (academicianId) => fakeFetch('/api/schedule', { academicianId }),
   updateSchedule: (data) => fakeFetch('/api/schedule', data, 'POST'),
   getAvailableSlots: (date, academicianId) => fakeFetch('/api/schedule/available-slots', { date, academicianId }),
   getAvailableDates: (academicianId, month, year) => fakeFetch('/api/schedule/available-dates', { academicianId, month, year }),
-  
+
   // Students (for academicians)
   getStudents: () => fakeFetch('/api/students'),
   getStudentDetail: (studentId) => fakeFetch('/api/students/detail', { studentId }),
-  
+
   // Admin
   getUsers: () => fakeFetch('/api/users'),
   getUserStats: () => fakeFetch('/api/users/stats'),
@@ -1104,6 +1372,18 @@ export const api = {
   deleteNotification: (notificationId) => fakeFetch('/api/notifications/delete', { notificationId }, 'DELETE'),
   getNotificationSettings: (userId) => fakeFetch('/api/notifications/settings', { userId }),
   updateNotificationSettings: (userId, settings) => fakeFetch('/api/notifications/settings', { userId, ...settings }, 'POST'),
+
+  // Faculties
+  getFaculties: () => fakeFetch('/api/faculties'),
+  createFaculty: (data) => fakeFetch('/api/faculties', data, 'POST'),
+  updateFaculty: (facultyId, data) => fakeFetch('/api/faculties/update', { facultyId, ...data }, 'PUT'),
+  deleteFaculty: (facultyId) => fakeFetch('/api/faculties/delete', { facultyId }, 'DELETE'),
+
+  // Departments
+  getDepartments: () => fakeFetch('/api/departments'),
+  createDepartment: (data) => fakeFetch('/api/departments', data, 'POST'),
+  updateDepartment: (departmentId, data) => fakeFetch('/api/departments/update', { departmentId, ...data }, 'PUT'),
+  deleteDepartment: (departmentId) => fakeFetch('/api/departments/delete', { departmentId }, 'DELETE'),
 }
 
 export default api

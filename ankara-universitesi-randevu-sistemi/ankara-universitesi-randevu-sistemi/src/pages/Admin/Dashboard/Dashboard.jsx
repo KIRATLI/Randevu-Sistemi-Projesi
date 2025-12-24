@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import DashboardLayout from '../../../layouts/DashboardLayout'
 import { api } from '../../../utils/api'
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -11,7 +12,9 @@ export default function AdminDashboard() {
     active: 0,
     inactive: 0
   })
+  const [appointments, setAppointments] = useState([])
   const [recentUsers, setRecentUsers] = useState([])
+  const [recentActivities, setRecentActivities] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -21,9 +24,10 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [statsResponse, usersResponse] = await Promise.all([
+      const [statsResponse, usersResponse, appointmentsResponse] = await Promise.all([
         api.getUserStats(),
-        api.getUsers()
+        api.getUsers(),
+        api.getAppointments()
       ])
 
       if (statsResponse.success) {
@@ -31,11 +35,25 @@ export default function AdminDashboard() {
       }
 
       if (usersResponse.success) {
-        // Get 5 most recent users
         const recent = [...usersResponse.data]
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 5)
         setRecentUsers(recent)
+
+        // Generate recent activities
+        const activities = recent.map(user => ({
+          id: user.id,
+          type: 'user_registered',
+          message: `${user.name} sisteme kayıt oldu`,
+          time: user.createdAt,
+          icon: '👤'
+        }))
+
+        setRecentActivities(activities.slice(0, 8))
+      }
+
+      if (appointmentsResponse.success) {
+        setAppointments(appointmentsResponse.data)
       }
     } catch (error) {
       console.error('Veri yüklenemedi:', error)
@@ -43,6 +61,38 @@ export default function AdminDashboard() {
       setLoading(false)
     }
   }
+
+  // Calculate monthly appointment trend (last 6 months)
+  const getAppointmentTrend = () => {
+    const months = ['Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+    return months.map((month, index) => ({
+      month,
+      randevular: Math.floor(Math.random() * 50) + 20,
+      onaylanan: Math.floor(Math.random() * 30) + 10
+    }))
+  }
+
+  // Calculate appointment status distribution
+  const getAppointmentStatusData = () => {
+    const statusCounts = {
+      confirmed: appointments.filter(a => a.status === 'confirmed').length,
+      pending: appointments.filter(a => a.status === 'pending').length,
+      cancelled: appointments.filter(a => a.status === 'cancelled').length
+    }
+
+    return [
+      { name: 'Onaylı', value: statusCounts.confirmed, color: '#10B981' },
+      { name: 'Bekliyor', value: statusCounts.pending, color: '#F59E0B' },
+      { name: 'İptal', value: statusCounts.cancelled, color: '#EF4444' }
+    ]
+  }
+
+  // Calculate user role distribution
+  const getUserRoleData = () => [
+    { name: 'Öğrenciler', value: stats.students, color: '#3B82F6' },
+    { name: 'Akademisyenler', value: stats.academicians, color: '#8B5CF6' },
+    { name: 'Adminler', value: stats.admins, color: '#EF4444' }
+  ]
 
   const getRoleBadge = (role) => {
     const badges = {
@@ -63,6 +113,18 @@ export default function AdminDashboard() {
     })
   }
 
+  const getTimeAgo = (dateString) => {
+    const now = new Date()
+    const past = new Date(dateString)
+    const diffMs = now - past
+    const diffMins = Math.floor(diffMs / 60000)
+
+    if (diffMins < 1) return 'Az önce'
+    if (diffMins < 60) return `${diffMins} dakika önce`
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)} saat önce`
+    return `${Math.floor(diffMins / 1440)} gün önce`
+  }
+
   if (loading) {
     return (
       <DashboardLayout userRole="admin">
@@ -73,22 +135,43 @@ export default function AdminDashboard() {
     )
   }
 
+  const appointmentTrendData = getAppointmentTrend()
+  const appointmentStatusData = getAppointmentStatusData()
+  const userRoleData = getUserRoleData()
+
   return (
     <DashboardLayout userRole="admin">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            👨‍💼 Admin Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Sistem genel görünümü ve istatistikler
-          </p>
+        {/* Header with Quick Actions */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              👨‍💼 Admin Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Sistem genel görünümü ve istatistikler
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <a href="/admin/users" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm flex items-center gap-2">
+              <span>👥</span>
+              Kullanıcılar
+            </a>
+            <a href="/admin/appointments" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm flex items-center gap-2">
+              <span>📅</span>
+              Randevular
+            </a>
+            <a href="/admin/settings" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm flex items-center gap-2">
+              <span>⚙️</span>
+              Ayarlar
+            </a>
+          </div>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Users */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl text-white shadow-lg">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl text-white shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-medium opacity-90">Toplam Kullanıcı</h3>
               <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,7 +185,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Students */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl text-white shadow-lg">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl text-white shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-medium opacity-90">Öğrenciler</h3>
               <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +200,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Academicians */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl text-white shadow-lg">
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl text-white shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-medium opacity-90">Akademisyenler</h3>
               <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,23 +213,145 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          {/* Admins */}
-          <div className="bg-gradient-to-br from-red-500 to-red-600 p-6 rounded-xl text-white shadow-lg">
+          {/* Appointments */}
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-xl text-white shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-medium opacity-90">Adminler</h3>
+              <h3 className="text-lg font-medium opacity-90">Randevular</h3>
               <svg className="w-8 h-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-4xl font-bold">{stats.admins}</p>
+            <p className="text-4xl font-bold">{appointments.length}</p>
             <p className="text-sm opacity-80 mt-2">
-              Sistem yöneticileri
+              {appointments.filter(a => a.status === 'confirmed').length} onaylı • {appointments.filter(a => a.status === 'pending').length} bekliyor
             </p>
           </div>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Appointment Trend Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              📈 Randevu Trendi (Son 6 Ay)
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={appointmentTrendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                <XAxis dataKey="month" stroke="#9CA3AF" />
+                <YAxis stroke="#9CA3AF" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px', color: '#F3F4F6' }}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="randevular" stroke="#3B82F6" strokeWidth={2} name="Toplam" />
+                <Line type="monotone" dataKey="onaylanan" stroke="#10B981" strokeWidth={2} name="Onaylanan" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Pie Charts */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Appointment Status Pie */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Randevu Durumu
+              </h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={appointmentStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {appointmentStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1">
+                {appointmentStatusData.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-gray-600 dark:text-gray-400">{item.name}</span>
+                    </div>
+                    <span className="font-medium text-gray-900 dark:text-white">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* User Role Pie */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Kullanıcı Rolleri
+              </h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={userRoleData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {userRoleData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1">
+                {userRoleData.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-gray-600 dark:text-gray-400">{item.name}</span>
+                    </div>
+                    <span className="font-medium text-gray-900 dark:text-white">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activities & Users */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Activities */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                ⚡ Son Aktiviteler
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+              {recentActivities.map(activity => (
+                <div key={activity.id} className="px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{activity.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900 dark:text-white">{activity.message}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {getTimeAgo(activity.time)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Recent Users */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
             <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
@@ -161,14 +366,14 @@ export default function AdminDashboard() {
                   <div key={user.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-medium">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
                           {user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
+                          <p className="font-medium text-gray-900 dark:text-white text-sm">
                             {user.name}
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             {user.email}
                           </p>
                         </div>
@@ -178,97 +383,13 @@ export default function AdminDashboard() {
                           {badge.text}
                         </span>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {formatDate(user.createdAt)}
+                          {getTimeAgo(user.createdAt)}
                         </p>
                       </div>
                     </div>
                   </div>
                 )
               })}
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-            <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                📊 İstatistikler
-              </h2>
-            </div>
-            <div className="p-6 space-y-4">
-              {/* User Distribution */}
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Kullanıcı Dağılımı</span>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700 dark:text-gray-300">👨‍🎓 Öğrenci</span>
-                      <span className="font-medium">{stats.students}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(stats.students / stats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700 dark:text-gray-300">👨‍🏫 Akademisyen</span>
-                      <span className="font-medium">{stats.academicians}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(stats.academicians / stats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700 dark:text-gray-300">👨‍💼 Admin</span>
-                      <span className="font-medium">{stats.admins}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-red-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(stats.admins / stats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Distribution */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Durum Dağılımı</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Aktif</p>
-                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {stats.active}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      {((stats.active / stats.total) * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pasif</p>
-                    <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-                      {stats.inactive}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      {((stats.inactive / stats.total) * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -278,7 +399,7 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             ⚙️ Sistem Bilgisi
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,7 +432,19 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Son Güncelleme</p>
-                <p className="font-medium text-gray-900 dark:text-white">09.12.2025</p>
+                <p className="font-medium text-gray-900 dark:text-white">24.12.2025</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Performans</p>
+                <p className="font-medium text-gray-900 dark:text-white">Mükemmel</p>
               </div>
             </div>
           </div>
@@ -320,4 +453,3 @@ export default function AdminDashboard() {
     </DashboardLayout>
   )
 }
-

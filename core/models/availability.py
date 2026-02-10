@@ -1,45 +1,40 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime
+from django.utils import timezone
 from django.db import models
 
 class AvailabilityManager(models.Manager):
-    def available(self, date):
-        return self.appointment_set.exclude(
-            start_time__lte=date,
-            end_time__gt=date
-            )
+    def available(self):
+        return self.filter(appointment__isnull=True)
     
-    def booked(self, date):
-        return self.appointment_set.filter(
-            start_time__lte=date,
-            end_time__gt=date
-            )
+    def booked(self):
+        return self.filter(appointment__isnull=False)
     
     def upcoming(self):
-        today = timezone.now().date()
-        return self.filter(date__gte=today)
+        return self.filter(date__gte=timezone.now().date())
 
     def past(self):
-        today = timezone.now().date()
-        return self.filter(date__lt=today)
+        return self.filter(date__lt=timezone.now().date())
     
     def for_teacher(self, teacher):
         return self.filter(academician=teacher)
     
     def available_upcoming(self):
-        return self.available().upcoming()
+        return self.available().filter(date__gte=timezone.now().date())
 
 #===
 
 # also known as 'slot'
 class Availability(models.Model):
-    # ForeignKey explanation:
-    # Like a reference to another object
-    # In Django: academician = models.ForeignKey(AbstractCustomUser) (stores reference to a user)
-    # on_delete=models.CASCADE means: if teacher is deleted, delete their time slots too
-    #
-    # Foreign key also makes the AbstractCustomUser to get a appointment_set ({modelname_lowercase}_set)
-    # or just change this by adding 'related_name="appointments"'
-    # This is valid for OneToOneField as well.
+    DAYS = (
+        ('monday', 'Pazartesi'),
+        ('tuesday', 'Salı'),
+        ('wednesday', 'Çarşamba'),
+        ('thursday', 'Perşembe'),
+        ('friday', 'Cuma'),
+        ('saturday', 'Cumartesi'),
+        ('sunday', 'Pazar')
+    )
+
     academician = models.ForeignKey(
         'core.AbstractCustomUser',
         on_delete=models.CASCADE,
@@ -48,9 +43,8 @@ class Availability(models.Model):
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
-    
-    #is_booked = models.BooleanField(default=False)
 
+    
     objects = AvailabilityManager()
 
     def __str__(self):
@@ -64,20 +58,22 @@ class Availability(models.Model):
     def is_past(self):
         now = timezone.now()
         slot_datetime = datetime.combine(self.date, self.start_time)
-        # make it aware of the timezone. (E.g. Istanbul 3:30 PM (UTC+3, the time zone))
-        slot_datetime = timezone.make_aware(slot_datetime)
+        # make it aware of the timezone. (E.g., Istanbul 3:30 PM (UTC+3, the time zone))
+        if timezone.is_naive(slot_datetime):
+            slot_datetime = timezone.make_aware(slot_datetime)
         return slot_datetime < now
+
+    @property
+    def is_booked(self):
+        # Check if this object has attribute 'appointment' because Appointment has a ForeignKey to an Availability
+        return hasattr(self, 'appointment')
     
-    def is_available(self, date):
+    def is_available(self):
         if self.is_past():
             return False
 
-        return not self.appointment_set.filter(
-            start_time__lte=date,
-            end_time__gt=date
-            ).exists()
-        #return not self.is_booked and not self.is_past()
-    
+        return not self.is_booked
+
     def get_time_range(self):
         return f"{self.start_time.strftime('%H:%M')} - {self.end_time.strftime('%H:%M')}"
     

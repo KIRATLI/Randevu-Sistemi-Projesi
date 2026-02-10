@@ -1,3 +1,6 @@
+#
+# URLs are at randevu_sistemi/urls.py at the moment.
+#
 from django.urls import path
 from . import views
 

@@ -1,25 +1,24 @@
-"""
-URL configuration for randevu_sistemi project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # All URLs starting with '' go to core app ('core/urls.py')
+    
+    # Core uygulamasının yolları
     path('', include('core.urls')),
+    
+    # Tüm auth işlemlerini 'api/auth/' prefix'i ile routes.auth içinden çekelim
+    path('api/auth/', include('routes.auth_urls')),
+
+    # Tüm academician işlemleri
+    path('api/academicians/', include('routes.academicians_urls')),
+
+    # Tüm appointment işlemleri
+    path('api/appointments/', include('routes.appointments_urls')),
+
+    # Tüm profile işlemleri
+    path('api/profile/', include('routes.profiles_urls')),
+
+    # Tüm users işlemleri
+    path('api/users/', include('routes.users_urls'))
 ]

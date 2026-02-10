@@ -1,12 +1,20 @@
-﻿from abc import abstractmethod
-from django.utils import timezone
-import re
+﻿from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 from .appointment import Appointment
 from .availability import Availability
 
+# Specialization for Academicians model
+
+class Specialization(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+
+# Abstract Custom User
 
 class AbstractCustomUser(AbstractUser):
     """
@@ -16,10 +24,17 @@ class AbstractCustomUser(AbstractUser):
     ROLE_CHOICES = (
         ('academician', 'Akademisyen'),
         ('student', 'Öğrenci'),
+        ('admin', 'Admin'),
     )
+    name = models.CharField(max_length=20)
+    email = models.EmailField(unique=True, blank=True, null=True)
+    # bio has been moved to Profile
+    #bio = models.TextField(max_length=255, blank=True, null=True)
+
     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='student')
     number = models.CharField(max_length=20, unique=True, blank=True, null=True)
     department = models.CharField(max_length=100, blank=True, null=True)
+    faculty = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         abstract = False
@@ -36,21 +51,21 @@ class AbstractCustomUser(AbstractUser):
 
     def as_student(self):
         if self.is_student():
-            return Student.objects.get(pf=self.pk) # pk = primary key
+            return Student.objects.get(pk=self.pk) # pk = primary key
         return None
 
     def as_academician(self):
         if self.is_academician():
             return Academician.objects.get(pk=self.pk)
+        return None
+
 
     # Abstract methods
-    @abstractmethod
     def get_dashboard_data(self):
-        pass
-    
-    @abstractmethod
+        raise NotImplementedError("Subclasses must implement get_dashboard_data")
+
     def get_upcoming_schedule(self):
-        pass
+        raise NotImplementedError("Subclasses must implement get_upcoming_schedule")
 
 
 
@@ -176,6 +191,9 @@ class Academician(AbstractCustomUser):
     Uses proxy model pattern.
     """
     title = models.CharField(max_length=50, blank=True, null=True)
+    office = models.CharField(max_length=100, blank=True, null=True)
+    specializations = models.ManyToManyField(Specialization, blank=True)
+    #available = models.BooleanField(default=True) is it a field or result of a availability check?
     
     objects = AcademicianManager()
     
@@ -284,7 +302,7 @@ class Academician(AbstractCustomUser):
         return Appointment.objects.filter(availability__academician=self).count()
     
     def get_total_slots_count(self):
-        """Get total number of slots created"""
+        """Get the total number of slots created"""
         return self.availability_set.count()
     
     # def get_available_slots_count(self):
@@ -298,7 +316,7 @@ class Academician(AbstractCustomUser):
             'upcoming_appointments': self.get_upcoming_appointments(),
             'todays_appointments': self.get_todays_appointments(),
             'pending_appointments': self.get_pending_appointments(),
-            'available_slots': self.get_upcoming_available_slots()[:10],  # Next 10
+            #'available_slots': self.get_upcoming_available_slots()[:10],  # Next 10 TODO fix
             'total_appointments': self.get_total_appointments_count(),
             'total_students': self.get_students().count(),
         }

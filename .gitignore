@@ -1,8 +1,8 @@
 # Ignore database since merging would be a nightmare
 db.sqlite3
 
-# Ignore visual studio data
-.vs
+# Ignore idea
+.idea
 
 # Ignore Python bytecode and caches
 __pycache__/

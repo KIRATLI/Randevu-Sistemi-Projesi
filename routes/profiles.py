@@ -127,3 +127,80 @@ def update_profile_view(request):
 
     except Exception as e:
         return JsonResponse({"success": False, "message": f"Güncelleme sırasında hata: {str(e)}"}, status=400)
+
+
+# Upload avatar
+
+@csrf_exempt
+def upload_avatar_view(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+
+    try:
+        # FormData'dan gelen userId ve file'ı alıyoruz
+        user_id = request.POST.get('userId')
+        avatar_file = request.FILES.get('file')
+
+        if not user_id or not avatar_file:
+            return JsonResponse({"success": False, "message": "userId ve dosya gereklidir"}, status=400)
+
+        # 1. Kullanıcıyı ve Profili bul
+        user = get_object_or_404(AbstractCustomUser, id=user_id)
+        profile = user.profile
+
+        # 2. Dosyayı kaydet
+        # Django eski dosyayı otomatik silmez, eğer istersen burada manuel silebilirsin.
+        profile.avatar = avatar_file
+        profile.save()
+
+        # 3. Full URL'i oluştur
+        # request.build_absolute_uri() kullanarak tam adresi (http://...) döndürebiliriz
+        avatar_url = request.build_absolute_uri(profile.avatar.url)
+
+        return JsonResponse({
+            "success": True,
+            "message": "Profil fotoğrafı güncellendi",
+            "avatarUrl": avatar_url
+        })
+
+    except Exception as e:
+        return JsonResponse({"success": False, "message": f"Yükleme hatası: {str(e)}"}, status=500)
+
+
+# Change password
+
+@csrf_exempt
+def change_password_view(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        user_id = data.get('userId')
+        old_password = data.get('oldPassword')
+        new_password = data.get('newPassword')
+
+        # Gerekli alanların kontrolü
+        if not all([user_id, old_password, new_password]):
+            return JsonResponse({"success": False, "message": "Tüm alanlar (userId, oldPassword, newPassword) gereklidir"}, status=400)
+
+        # 1. Kullanıcıyı getir
+        user = get_object_or_404(AbstractCustomUser, id=user_id)
+
+        # 2. Eski şifreyi doğrula
+        # Django'nun check_password metodu hashlenmiş şifre ile düz metni karşılaştırır
+        if not user.check_password(old_password):
+            return JsonResponse({"success": False, "message": "Mevcut şifre hatalı"}, status=400)
+
+        # 3. Yeni şifreyi belirle ve kaydet
+        # set_password şifreyi otomatik olarak hashler
+        user.set_password(new_password)
+        user.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Şifre başarıyla değiştirildi"
+        })
+
+    except Exception as e:
+        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)

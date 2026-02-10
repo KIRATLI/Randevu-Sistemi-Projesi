@@ -1,0 +1,98 @@
+from django.db.models import Count, Q, Max, Min
+from django.http import JsonResponse
+from django.utils import timezone
+
+from core.models import Student
+
+
+def get_students_list_view(request):
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+
+    now = timezone.now()
+
+    # Annotate kullanarak tüm istatistikleri tek sorguda hesaplıyoruz
+    students = Student.objects.select_related('profile').annotate(
+        total_count=Count('student_appointments'),
+        completed_count=Count('student_appointments', filter=Q(student_appointments__status='completed')),
+        cancelled_count=Count('student_appointments', filter=Q(student_appointments__status='cancelled')),
+        # Geçmişteki son randevu tarihi
+        last_app_date=Max('student_appointments__date', filter=Q(student_appointments__date__lt=now)),
+        # Gelecekteki ilk randevu tarihi
+        next_app_date=Min('student_appointments__date', filter=Q(student_appointments__date__gte=now))
+    ).all()
+
+    data = []
+    for student in students:
+        data.append({
+            "id": student.id,
+            "name": student.get_full_name() or student.username,
+            "studentNo": student.number,
+            "email": student.email,
+            "department": student.department,
+            "faculty": student.faculty,
+            "year": student.year,
+            "gpa": student.gpa,
+            "phone": student.profile.phone,
+            "totalAppointments": student.total_count,
+            "completedAppointments": student.completed_count,
+            "cancelledAppointments": student.cancelled_count,
+            "lastAppointment": student.last_app_date.isoformat() if student.last_app_date else None,
+            "nextAppointment": student.next_app_date.isoformat() if student.next_app_date else None,
+            "status": "active" if student.is_active else "inactive"
+        })
+
+    return JsonResponse({
+        "success": True,
+        "data": data
+    })
+
+
+# Student Details
+
+def get_student_detail_view(request):
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+
+    student_id = request.GET.get('userId')
+    if not student_id:
+        return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+
+    # 1. Öğrenciyi, profili ve randevu sayısını çekiyoruz
+    student = Student.objects.filter(id=student_id).select_related('profile').annotate(
+        total_count=Count('student_appointments')
+    ).first()
+
+    if not student:
+        return JsonResponse({"success": False, "message": "Öğrenci bulunamadı"}, status=404)
+
+    # 2. Öğrencinin tüm randevularını listeliyoruz
+    appointments_qs = student.student_appointments.all().order_by('-date', '-start_time')
+    appointments_list = []
+
+    for app in appointments_qs:
+        appointments_list.append({
+            "id": app.id,
+            "date": app.date.isoformat(),
+            "time": app.start_time.strftime("%H:%M"),
+            "subject": app.subject,
+            "status": app.status
+        })
+
+    # 3. JSON Yanıtı
+    return JsonResponse({
+        "success": True,
+        "data": {
+            "id": student.id,
+            "name": student.get_full_name() or student.username,
+            "studentNo": student.number, # Senin modelinde 'number' olarak geçiyordu
+            "email": student.email,
+            "department": student.department,
+            "year": student.year,
+            "gpa": float(student.gpa) if student.gpa else 0.0,
+            "totalAppointments": student.total_count,
+            "appointments": appointments_list,
+            "notes": student.profile.bio,
+            "registrationDate": student.date_joined.strftime("%Y-%m-%d") # Django'nun default alanı
+        }
+    })

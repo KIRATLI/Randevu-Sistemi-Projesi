@@ -1,4 +1,7 @@
-﻿from django.utils import timezone
+﻿from decimal import Decimal
+
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
@@ -101,11 +104,20 @@ class Student(AbstractCustomUser):
     Student user - inherits from CustomUser.
     Uses proxy model pattern (no extra database table).
     """
+    gpa = models.DecimalField(
+        max_digits=3,          # Toplam basamak sayısı (Örn: 4.00 için 3 basamak)
+        decimal_places=2,      # Virgülden sonraki basamak sayısı
+        default=Decimal('0.00'),
+        validators=[
+            MinValueValidator(Decimal('0.00')),
+            MaxValueValidator(Decimal('4.00'))
+        ],
+        help_text="Öğrencinin genel not ortalaması (0.00 - 4.00 arası)"
+    )
     
     objects = StudentManager()
     
     class Meta:
-        proxy = True  # This means no new table, just different behavior
         verbose_name="Öğrenci"
         verbose_name_plural="Öğrenciler"
 
@@ -116,8 +128,7 @@ class Student(AbstractCustomUser):
             'upcoming_appointments': self.get_upcoming_appointments(),
             'past_appointments': self.get_past_appointments(),
             'pending_appointments': self.get_pending_appointments(),
-            # appointment_set comes from Appointment model having a ForeignKey to this student.
-            'total_appointments': self.appointment_set.count(),
+            'total_appointments': self.student_appointments.count(),
         }
     
     def get_upcoming_schedule(self):
@@ -132,29 +143,29 @@ class Student(AbstractCustomUser):
     
     def get_my_appointments(self):
         """Get all appointments for this student"""
-        return self.appointment_set.all().order_by('-availability__date') # descending order
+        return self.student_appointments.all().order_by('-availability__date') # descending order
     
     def get_upcoming_appointments(self):
         """Get future appointments"""
         today = timezone.now().date()
-        return self.appointment_set.filter(
+        return self.student_appointments.filter(
             availability__date__gte=today
         ).order_by('availability__date', 'availability__start_time')
     
     def get_past_appointments(self):
         """Get past appointments"""
         today = timezone.now().date()
-        return self.appointment_set.filter(
+        return self.student_appointments.filter(
             availability__date__lt=today
         ).order_by('-availability__date')
     
     def get_pending_appointments(self):
         """Get appointments waiting for approval"""
-        return self.appointment_set.filter(approved=False)
+        return self.student_appointments.filter(approved=False)
     
     def has_appointment_with_teacher(self, teacher):
         """Check if student has appointment with specific teacher"""
-        return self.appointment_set.filter(
+        return self.student_appointments.filter(
             availability__academician=teacher
         ).exists()
     
@@ -169,7 +180,7 @@ class Student(AbstractCustomUser):
             return False, "Cannot book past slots"
         
         # Can't book if already has appointment at same time
-        conflicting = self.appointment_set.filter(
+        conflicting = self.student_appointments.filter(
             availability__date=slot.date,
             availability__start_time=slot.start_time
         ).exists()

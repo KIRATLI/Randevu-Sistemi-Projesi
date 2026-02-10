@@ -1,3 +1,1 @@
-from django.shortcuts import render
-
-# Create your views here.
+# Views are at routes/ at the moment.

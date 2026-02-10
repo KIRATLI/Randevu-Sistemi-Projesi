@@ -20,8 +20,15 @@ class Appointment(models.Model):
     student = models.ForeignKey(
         'core.AbstractCustomUser',
         on_delete=models.CASCADE,
+        related_name='student_appointments',
         limit_choices_to={'role': 'student'}
         )
+    academician = models.ForeignKey(
+        'core.AbstractCustomUser',
+        on_delete=models.CASCADE,
+        related_name='academician_appointments',
+        limit_choices_to={'role': 'academician'}
+    )
     availability = models.ForeignKey(
         Availability,
         on_delete=models.CASCADE
@@ -38,7 +45,7 @@ class Appointment(models.Model):
 
 
     def __str__(self):
-        return f"Appointment: {self.student.first_name} -> {self.availability.academician.first_name}"
+        return f"Appointment: {self.student.first_name} -> {self.academician.first_name}"
 
     # def approve(self):
     #     self.approved = True

@@ -13,6 +13,9 @@ urlpatterns = [
     # Tüm academician işlemleri
     path('api/academicians/', include('routes.academicians_urls')),
 
+    # Tüm student işlemleri
+    path('api/students/', include('routes.students_urls')),
+
     # Tüm appointment işlemleri
     path('api/appointments/', include('routes.appointments_urls')),
 
@@ -20,5 +23,17 @@ urlpatterns = [
     path('api/profile/', include('routes.profiles_urls')),
 
     # Tüm users işlemleri
-    path('api/users/', include('routes.users_urls'))
+    path('api/users/', include('routes.users_urls')),
+
+    # Tüm messages işlemleri
+    path('api/messages/', include('routes.messages_urls')),
+
+    # Tüm schedule işlemleri
+    path('api/schedules/', include('routes.schedules_urls')),
+
+    # Tüm announcement işlemleri
+    path('api/announcements/', include('routes.announcements_urls')),
+
+    # Tüm notification işlemleri
+    path('api/notifications/', include('routes.notifications_urls')),
 ]

@@ -1,45 +1,29 @@
-# Separated models into their own file at 'core/models/' for better organization.
+from django.db.models import F
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+from core.models.announcement import AnnouncementView
 
 
-# from django.db import models
-# from django.contrib.auth.models import AbstractUser
+@receiver(post_save, sender=AnnouncementView)
+def update_announcement_view_count(sender, instance, created, **kwargs):
+    """
+    Bir AnnouncementView kaydı OLUŞTURULDUĞUNDA (created=True),
+    ilgili duyurunun view_count değerini atomik olarak 1 artırır.
+    """
+    if created:
+        # F('field') kullanarak veritabanı seviyesinde +1 yapıyoruz.
+        # Bu işlem 'race condition' riskini tamamen ortadan kaldırır.
+        instance.announcement.view_count = F('view_count') + 1
+        instance.announcement.save(update_fields=['view_count'])
 
-# class CustomUser(AbstractUser):
-#     ROLE_CHOICES = (
-#         ('akademisyen', 'Akademisyen'),
-#         ('ogrenci', 'Öğrenci'),
-#     )
-#     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='ogrenci')
-#     numara = models.CharField(max_length=20, unique=True, blank=True, null=True)
-#     unvan = models.CharField(max_length=50, blank=True, null=True)
-#     bolum = models.CharField(max_length=100, blank=True, null=True, verbose_name="Bölüm")
-
-#     def __str__(self):
-#         return f"{self.first_name} {self.last_name} ({self.role})"
-
-# class Musaitlik(models.Model):
-#     # ForeignKey explanation:
-#     # Like a reference to another object
-#     # In Django: akademisyen = models.ForeignKey(CustomUser) (stores reference to a user)
-#     # on_delete=models.CASCADE means: if teacher is deleted, delete their time slots too
-#     akademisyen = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'akademisyen'})
-#     tarih = models.DateField()
-#     baslangic = models.TimeField()
-#     bitis = models.TimeField()
-#     dolu_mu = models.BooleanField(default=False)
-
-#     def __str__(self):
-#         return f"{self.akademisyen.first_name} - {self.tarih} {self.baslangic}"
-
-# class Randevu(models.Model):
-#     ogrenci = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'ogrenci'})
-#     # OneToOneField explanation:
-#     # - Each appointment can only book ONE time slot
-#     # - Each time slot can only have ONE appointment
-#     musaitlik = models.OneToOneField(Musaitlik, on_delete=models.CASCADE)
-#     olusturulma_tarihi = models.DateTimeField(auto_now_add=True)
-#     not_mesaji = models.TextField(blank=True, null=True)
-#     onaylandi = models.BooleanField(default=True, verbose_name="Onaylandı mı?")
-
-#     def __str__(self):
-#         return f"Randevu: {self.ogrenci.first_name} -> {self.musaitlik.akademisyen.first_name}"
+@receiver(post_delete, sender=AnnouncementView)
+def decrement_announcement_view_count(sender, instance, **kwargs):
+    """
+    Bir AnnouncementView kaydı silindiğinde (manuel veya cascade),
+    ilgili duyurunun view_count değerini atomik olarak 1 azaltır.
+    """
+    if instance.announcement:
+        # F('field') - 1 kullanarak veritabanı seviyesinde azaltma yapıyoruz.
+        instance.announcement.view_count = F('view_count') - 1
+        instance.announcement.save(update_fields=['view_count'])

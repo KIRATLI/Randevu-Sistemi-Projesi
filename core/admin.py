@@ -23,10 +23,6 @@ class AvailabilityAdmin(admin.ModelAdmin):
 
 @admin.register(Appointment)
 class AppointmentAdmin(admin.ModelAdmin):
-    list_display = ('student', 'get_teacher', 'availability','start_time', 'end_time', 'creation_date', 'subject', 'note_message', 'status')
+    list_display = ('student', 'academician', 'availability','start_time', 'end_time', 'creation_date', 'subject', 'note_message', 'status')
     list_filter = ('status', 'creation_date')
     search_fields = ('student__username',)
-    
-    def get_teacher(self, obj):
-        return obj.get_teacher()
-    get_teacher.short_description = 'Academician'

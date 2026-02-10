@@ -44,13 +44,15 @@ def list_appointments_view(request):
 
     data = []
     for app in appointments:
+        academician = app.academician
+
         data.append({
             "id": app.id,
             "studentId": app.student.id,
             "studentName": app.student.get_full_name() or app.student.username,
             "studentNo": app.student.number,
-            "academicianId": app.availability.academician.id,
-            "academicianName": app.availability.academician.get_full_name() or app.availability.academician.username,
+            "academicianId": academician.id,
+            "academicianName": academician.get_full_name() or academician.username,
             "date": app.availability.date.strftime('%Y-%m-%d'),
             "time": app.availability.start_time.strftime('%H:%M'),
             "duration": app.availability.get_duration_minutes(),
@@ -77,14 +79,15 @@ def appointment_detail_view(request, appointment_id):
         Appointment.objects.select_related('student', 'academician', 'availability'),
         id=appointment_id
     )
+    academician = app.academician
 
     # 2. Response verisini hazırla
     data = {
         "id": app.id,
         "studentId": app.student.id,
         "studentName": app.student.get_full_name() or app.student.username,
-        "academicianId": app.availability.academician.id,
-        "academicianName": app.availability.academician.get_full_name() or app.availability.academician.username,
+        "academicianId": academician.id,
+        "academicianName": academician.get_full_name() or academician.username,
         "date": app.availability.date.strftime('%Y-%m-%d'),
         "time": app.availability.start_time.strftime('%H:%M'),
         "duration": app.availability.get_duration_minutes(),
@@ -180,7 +183,7 @@ def approve_appointment_view(request):
         if not appointment:
             return JsonResponse({"success": False, "message": "Randevu bulunamadı"}, status=404)
 
-        if appointment.availability.academician != request.user:
+        if appointment.academician != request.user:
             return JsonResponse({"success": False, "message": "Bu randevuyu onaylama yetkiniz yok"}, status=403)
 
         # 2. Durumu güncelle
@@ -220,7 +223,7 @@ def reject_appointment_view(request):
         if not appointment:
             return JsonResponse({"success": False, "message": "Randevu bulunamadı"}, status=404)
 
-        if appointment.availability.academician != request.user:
+        if appointment.academician != request.user:
             return JsonResponse({"success": False, "message": "Bu randevuyu reddetme yetkiniz yok"}, status=403)
 
         # 2. Durumu güncelle ve gerekçeyi notlara/reason alanına işle
@@ -265,7 +268,7 @@ def cancel_appointment_view(request):
         if not appointment:
             return JsonResponse({"success": False, "message": "Randevu bulunamadı"}, status=404)
 
-        if appointment.availability.academician != request.user:
+        if appointment.academician != request.user:
             return JsonResponse({"success": False, "message": "Bu randevuyu iptal etme yetkiniz yok"}, status=403)
 
         # 2. Daha önce iptal edilmiş veya tamamlanmış mı kontrolü

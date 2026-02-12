@@ -1,11 +1,11 @@
 import json
 
 from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser, Academician
+from core.utils.response_helpers import api_error, api_success
 
 
 @csrf_exempt
@@ -15,7 +15,7 @@ def users_base_view(request):
         return list_users_view(request)
     elif request.method == "POST":
         return create_user_view(request)
-    return JsonResponse({"success": False, "message": "Sadece GET ve POST kabul edilir"}, status=405)
+    return api_error("Yalnızca GET ve POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
 
 # List users
@@ -38,11 +38,7 @@ def list_users_view(request):
             "lastLogin": user.last_login.isoformat() if user.last_login else None
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data,
-        "total": total_count
-    })
+    return api_success(data, total=total_count)
 
 # Create user
 
@@ -77,20 +73,20 @@ def create_user_view(request):
                 office="Belirtilmemiş"
             )
 
-        return JsonResponse({
-            "success": True,
-            "message": "Kullanıcı başarıyla oluşturuldu",
-            "data": {
+        return api_success(
+            {
                 "id": user.id,
                 "name": user.get_full_name(),
                 "email": user.email,
                 "role": user.role,
                 "status": "active" if user.is_active else "inactive"
-            }
-        }, status=201)
+            },
+            "Kullanıcı başarıyla oluşturuldu",
+            status=201
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Kullanıcı oluşturulurken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Update user
@@ -98,14 +94,14 @@ def create_user_view(request):
 @csrf_exempt
 def update_user_view(request):
     if request.method != "PUT":
-        return JsonResponse({"success": False, "message": "Yalnızca PUT kabul edilir"}, status=405)
+        return api_error("Yalnızca PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         user_id = data.get('userId')
 
         if not user_id:
-            return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+            return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Kullanıcıyı getir
         user = get_object_or_404(AbstractCustomUser, id=user_id)
@@ -129,13 +125,10 @@ def update_user_view(request):
 
         user.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Kullanıcı başarıyla güncellendi"
-        })
+        return api_success(message="Kullanıcı başarıyla güncellendi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Kullanıcı güncellenirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Delete user
@@ -143,7 +136,7 @@ def update_user_view(request):
 @csrf_exempt
 def delete_user_view(request):
     if request.method != "DELETE":
-        return JsonResponse({"success": False, "message": "Yalnızca DELETE kabul edilir"}, status=405)
+        return api_error("Yalnızca DELETE kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         # Request body'den userId'yi alıyoruz
@@ -151,37 +144,34 @@ def delete_user_view(request):
         user_id = data.get('userId')
 
         if not user_id:
-            return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+            return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Kullanıcıyı bul
         user = AbstractCustomUser.objects.filter(id=user_id).first()
 
         if not user:
-            return JsonResponse({"success": False, "message": "Kullanıcı bulunamadı"}, status=404)
+            return api_error("Kullanıcı bulunamadı", "USER_NOT_FOUND", status=404)
 
         # 2. Silme işlemini gerçekleştir
         # Not: Bu işlem CASCADE tanımlı tüm alt kayıtları (Profile, Appointments vb.) siler.
         user.delete()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Kullanıcı başarıyla silindi"
-        })
+        return api_success(message="Kullanıcı başarıyla silindi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Silme hatası: {str(e)}"}, status=400)
+        return api_error(f"Kullanıcı silinirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Search
 
 def global_search_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Sadece GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     query = request.GET.get('query', '').strip()
 
     if not query:
-        return JsonResponse({"success": False, "message": "Arama terimi (query) boş olamaz"}, status=400)
+        return api_error("Arama terimi (query) boş olamaz", "QUERY_CANNOT_BE_EMPTY", status=400)
 
     # 1. Akademisyenleri ara (İsim, Soyisim, Departman, Fakülte, Unvan)
     # icontains: Büyük/küçük harf duyarsız arama yapar
@@ -226,10 +216,7 @@ def global_search_view(request):
             "info": f"Öğrenci: {stu.number}"
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": results
-    })
+    return api_success(results)
 
 
 # Stats
@@ -237,7 +224,7 @@ def global_search_view(request):
 def get_user_stats_view(request):
     # Güvenlik: Sadece GET isteklerini kabul et
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         # Tüm sayıları veritabanından tek tek çekiyoruz
@@ -254,9 +241,8 @@ def get_user_stats_view(request):
         active_count = AbstractCustomUser.objects.filter(is_active=True).count()
         inactive_count = AbstractCustomUser.objects.filter(is_active=False).count()
 
-        return JsonResponse({
-            "success": True,
-            "data": {
+        return api_success(
+            {
                 "total": total_count,
                 "students": student_count,
                 "academicians": academician_count,
@@ -264,7 +250,7 @@ def get_user_stats_view(request):
                 "active": active_count,
                 "inactive": inactive_count
             }
-        })
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"İstatistikler hesaplanırken hata oluştu: {str(e)}"}, status=500)
+        return api_error(f"Kullanıcı istatistikleri getirilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

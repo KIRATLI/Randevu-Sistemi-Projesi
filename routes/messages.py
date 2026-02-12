@@ -1,11 +1,13 @@
 import json
 
-from django.http import JsonResponse
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser
 from core.models.message import Message, Thread
+from core.models.notification import Notification
+from core.utils.response_helpers import api_error, api_success
 
 
 # Messages
@@ -15,18 +17,18 @@ def messages_view(request):
         return get_messages_view(request)
     elif request.method == "POST":
         return send_message_view(request)
-    return JsonResponse({"success": False, "message": "Sadece GET ve POST kabul edilir"}, status=405)
+    return api_error("Yalnızca GET ve POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
 
 # List all messages
 
 def get_messages_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     user_id = request.GET.get('userId')
     if not user_id:
-        return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+        return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Kullanıcıyı getir
     user = get_object_or_404(AbstractCustomUser, id=user_id)
@@ -64,10 +66,7 @@ def get_messages_view(request):
             "replyTo": msg.reply_to_id
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)
 
 
 # Send Message
@@ -75,7 +74,7 @@ def get_messages_view(request):
 @csrf_exempt
 def send_message_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -88,7 +87,7 @@ def send_message_view(request):
         thread_id = data.get('threadId')
 
         if not all([sender_id, receiver_id, content]):
-            return JsonResponse({"success": False, "message": "Eksik bilgi (userId, receiverId veya content)"}, status=400)
+            return api_error("userId, receiverId ve content gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         sender = get_object_or_404(AbstractCustomUser, id=sender_id)
         receiver = get_object_or_404(AbstractCustomUser, id=receiver_id)
@@ -112,10 +111,8 @@ def send_message_view(request):
         # 3. Thread'i güncelle (updated_at için)
         thread.save() # auto_now=True sayesinde güncellenir
 
-        return JsonResponse({
-            "success": True,
-            "message": "Mesaj gönderildi",
-            "data": {
+        return api_success(
+            {
                 "id": message.id,
                 "senderId": sender.id,
                 "receiverId": receiver.id,
@@ -124,22 +121,24 @@ def send_message_view(request):
                 "date": message.date.isoformat(),
                 "read": message.is_read,
                 "threadId": thread.id
-            }
-        }, status=201)
+            },
+            "Mesaj gönderildi",
+            status=201
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Mesaj gönderirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Messages in a Thread
 
 def get_thread_messages_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     thread_id = request.GET.get('threadId')
     if not thread_id:
-        return JsonResponse({"success": False, "message": "threadId gereklidir"}, status=400)
+        return api_error("threadId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Thread'i ve katılımcıları getir (Hata kontrolü için)
     thread = get_object_or_404(Thread, id=thread_id)
@@ -176,10 +175,7 @@ def get_thread_messages_view(request):
             "replyTo": msg.reply_to_id
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)
 
 
 # Mark read the message
@@ -187,14 +183,14 @@ def get_thread_messages_view(request):
 @csrf_exempt
 def mark_message_read_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         message_id = data.get('messageId')
 
         if not message_id:
-            return JsonResponse({"success": False, "message": "messageId gereklidir"}, status=400)
+            return api_error("messageId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Mesajı bul
         message = get_object_or_404(Message, id=message_id)
@@ -204,13 +200,10 @@ def mark_message_read_view(request):
             message.is_read = True
             message.save(update_fields=['is_read']) # Sadece bu alanı güncellemek daha performanslıdır
 
-        return JsonResponse({
-            "success": True,
-            "message": "Mesaj okundu olarak işaretlendi"
-        })
+        return api_success(message="Mesaj okundu olarak işaretlendi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Mesajı okundu işaretlerken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Delete a message
@@ -218,44 +211,41 @@ def mark_message_read_view(request):
 @csrf_exempt
 def delete_message_view(request):
     if request.method != "DELETE":
-        return JsonResponse({"success": False, "message": "Yalnızca DELETE kabul edilir"}, status=405)
+        return api_error("Yalnızca DELETE kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         message_id = data.get('messageId')
 
         if not message_id:
-            return JsonResponse({"success": False, "message": "messageId gereklidir"}, status=400)
+            return api_error("messageId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Mesajı bul
         message = Message.objects.filter(id=message_id).first()
 
         if not message:
-            return JsonResponse({"success": False, "message": "Mesaj bulunamadı"}, status=404)
+            return api_error("Mesaj bulunamadı", "MESSAGE_NOT_FOUND", status=404)
 
         # 2. Silme işlemini gerçekleştir
         # Not: Eğer bu mesaj bir 'replyTo' referansı ise,
         # diğer mesajlardaki reply_to alanları models.SET_NULL sayesinde boşa çıkar.
         message.delete()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Mesaj başarıyla silindi"
-        })
+        return api_success(message="Mesaj başarıyla silindi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Mesaj silinirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Unread messages count
 
 def get_unread_count_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     user_id = request.GET.get('userId')
     if not user_id:
-        return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+        return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Kullanıcıyı getir
     user = get_object_or_404(AbstractCustomUser, id=user_id)
@@ -269,7 +259,63 @@ def get_unread_count_view(request):
         is_read=False
     ).exclude(sender=user).count()
 
-    return JsonResponse({
-        "success": True,
-        "count": unread_count
-    })
+    return api_success(message="Okunmamış mesaj sayısı kontrol edildi.", count=unread_count)
+
+
+# Send a bulk message
+
+def bulk_send_message_view(request):
+    if request.method != "POST":
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    try:
+        data = json.loads(request.body)
+        subject = data.get('subject')
+        content = data.get('content')
+        audience = data.get('targetAudience') # all, student, academician
+
+        if not all([subject, content, audience]):
+            return api_error("subject, content ve targetAudience gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        # 1. Hedef kitleyi filtrele
+        user_query = AbstractCustomUser.objects.filter(is_active=True)
+        if audience == 'student':
+            user_query = user_query.filter(role='student')
+        elif audience == 'academician':
+            user_query = user_query.filter(role='academician')
+
+        users = list(user_query) # QuerySet'i listeye çeviriyoruz
+        sent_count = len(users)
+
+        # 2. Toplu İşlem (Atomic)
+        with transaction.atomic():
+            messages_to_create = []
+            notifications_to_create = []
+
+            for user in users:
+                # Her kullanıcı için mesaj objesi hazırla
+                messages_to_create.append(Message(
+                    sender=request.user if request.user.is_authenticated else None,
+                    recipient=user,
+                    subject=subject,
+                    content=content
+                ))
+
+                # Her kullanıcı için bildirim objesi hazırla
+                notifications_to_create.append(Notification(
+                    user=user,
+                    type='new_message',
+                    title=f"Yeni Mesaj: {subject}",
+                    message="Yönetimden yeni bir mesaj aldınız.",
+                    action_url="/messages/inbox"
+                ))
+
+            # 3. Veritabanına tek seferde göm (bulk_create)
+            # 500'erli paketler halinde göndererek hafızayı koruruz (batch_size)
+            Message.objects.bulk_create(messages_to_create, batch_size=500)
+            Notification.objects.bulk_create(notifications_to_create, batch_size=500)
+
+        return api_success(message="Mesaj tüm kullanıcılara gönderildi", status=201, sentCount=sent_count)
+
+    except Exception as e:
+        return api_error(f"Bulk mesaj gönderirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

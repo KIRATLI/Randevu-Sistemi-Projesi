@@ -1,10 +1,10 @@
 import json
 
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser
+from core.utils.response_helpers import api_error, api_success
 
 
 @csrf_exempt
@@ -13,14 +13,14 @@ def profile_view(request):
         return get_profile_view(request)
     elif request.method == "PUT":
         return update_profile_view(request)
-    return JsonResponse({"success": False, "message": "Sadece GET ve PUT kabul edilir"}, status=405)
+    return api_error("Yalnızca GET ve PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
 
 # Get profile
 
 def get_profile_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Sadece GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     user_id = request.GET.get('userId')
     # select_related ile profile ve academician bilgilerini tek seferde çekmeye çalışıyoruz
@@ -69,21 +69,21 @@ def get_profile_view(request):
             "emergencyContact": getattr(profile, 'emergency_contact', None),
         })
 
-    return JsonResponse({"success": True, "data": data})
+    return api_success(data)
 
 
 # Update profile (and user properties)
 
 def update_profile_view(request):
     if request.method != "PUT":
-        return JsonResponse({"success": False, "message": "Yalnızca PUT kabul edilir"}, status=405)
+        return api_error("Yalnızca PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         user_id = data.get('userId')
 
         if not user_id:
-            return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+            return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Kullanıcıyı ve Profili getir
         user = get_object_or_404(AbstractCustomUser, id=user_id)
@@ -108,10 +108,8 @@ def update_profile_view(request):
         profile.save()
 
         # 4. Güncel veriyi döndür (Response formatına uygun)
-        return JsonResponse({
-            "success": True,
-            "message": "Profil başarıyla güncellendi",
-            "data": {
+        return api_success(
+            {
                 "id": profile.id,
                 "userId": user.id,
                 "name": user.get_full_name() or user.username,
@@ -122,11 +120,12 @@ def update_profile_view(request):
                 "address": profile.address,
                 "department": user.department,
                 "faculty": user.faculty
-            }
-        })
+            },
+            "Profile başarıyla güncellendi"
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Güncelleme sırasında hata: {str(e)}"}, status=400)
+        return api_error(f"Profil güncellenirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Upload avatar
@@ -134,7 +133,7 @@ def update_profile_view(request):
 @csrf_exempt
 def upload_avatar_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         # FormData'dan gelen userId ve file'ı alıyoruz
@@ -142,7 +141,7 @@ def upload_avatar_view(request):
         avatar_file = request.FILES.get('file')
 
         if not user_id or not avatar_file:
-            return JsonResponse({"success": False, "message": "userId ve dosya gereklidir"}, status=400)
+            return api_error("userId ve dosya gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Kullanıcıyı ve Profili bul
         user = get_object_or_404(AbstractCustomUser, id=user_id)
@@ -157,14 +156,10 @@ def upload_avatar_view(request):
         # request.build_absolute_uri() kullanarak tam adresi (http://...) döndürebiliriz
         avatar_url = request.build_absolute_uri(profile.avatar.url)
 
-        return JsonResponse({
-            "success": True,
-            "message": "Profil fotoğrafı güncellendi",
-            "avatarUrl": avatar_url
-        })
+        return api_success(message="Profil fotoğrafı güncellendi", avatarUrl=avatar_url)
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Yükleme hatası: {str(e)}"}, status=500)
+        return api_error(f"Profil avatarı yüklenirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Change password
@@ -172,7 +167,7 @@ def upload_avatar_view(request):
 @csrf_exempt
 def change_password_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -182,7 +177,7 @@ def change_password_view(request):
 
         # Gerekli alanların kontrolü
         if not all([user_id, old_password, new_password]):
-            return JsonResponse({"success": False, "message": "Tüm alanlar (userId, oldPassword, newPassword) gereklidir"}, status=400)
+            return api_error("userId, oldPassword ve newPassword gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Kullanıcıyı getir
         user = get_object_or_404(AbstractCustomUser, id=user_id)
@@ -190,17 +185,14 @@ def change_password_view(request):
         # 2. Eski şifreyi doğrula
         # Django'nun check_password metodu hashlenmiş şifre ile düz metni karşılaştırır
         if not user.check_password(old_password):
-            return JsonResponse({"success": False, "message": "Mevcut şifre hatalı"}, status=400)
+            return api_error("Mevcut şifre hatalı", "WRONG_PASSWORD", status=400)
 
         # 3. Yeni şifreyi belirle ve kaydet
         # set_password şifreyi otomatik olarak hashler
         user.set_password(new_password)
         user.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Şifre başarıyla değiştirildi"
-        })
+        return api_success(message="Şifre başarıyla değiştirildi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Şifre değiştirilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

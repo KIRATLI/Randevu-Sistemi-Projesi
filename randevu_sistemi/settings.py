@@ -49,6 +49,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.utils.response_helpers.APIErrorMiddleware'
 ]
 
 ROOT_URLCONF = 'randevu_sistemi.urls'

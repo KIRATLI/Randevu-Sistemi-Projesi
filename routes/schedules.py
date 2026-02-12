@@ -2,13 +2,13 @@ import calendar
 import json
 from datetime import datetime, timedelta, date
 
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser, Appointment
 from core.models.schedule import Schedule, WorkingSlot
+from core.utils.response_helpers import api_error, api_success
 
 
 # Schedule
@@ -18,18 +18,18 @@ def schedule_view(request):
         return get_schedule_view(request)
     elif request.method == "POST":
         return update_schedule_view(request)
-    return JsonResponse({"success": False, "message": "Sadece GET ve POST kabul edilir"}, status=405)
+    return api_error("Yalnızca GET ve POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
 
 # Get schedule
 
 def get_schedule_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     academician_id = request.GET.get('academicianId')
     if not academician_id:
-        return JsonResponse({"success": False, "message": "academicianId gereklidir"}, status=400)
+        return api_error("academicianId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Akademisyeni getir
     academician = get_object_or_404(AbstractCustomUser, id=academician_id, role='academician')
@@ -39,15 +39,15 @@ def get_schedule_view(request):
     schedule = Schedule.objects.filter(academician=academician).first()
 
     if not schedule:
-        return JsonResponse({
-            "success": True,
-            "data": {
+        return api_success(
+            {
                 "workingHours": [],
                 "slotDuration": 30,
                 "breakDuration": 0,
                 "maxAppointmentsPerDay": 0
-            }
-        })
+            },
+            "Program başarıyla görüntülendi"
+        )
 
     # 3. Günlük çalışma saatlerini listele
     working_hours_qs = WorkingSlot.objects.filter(schedule=schedule).order_by('id')
@@ -61,15 +61,15 @@ def get_schedule_view(request):
             "end": wh.end_time.strftime("%H:%M") if wh.end_time else "??:??"
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": {
+    return api_success(
+        {
             "workingHours": working_hours_list,
             "slotDuration": schedule.slot_duration,
             "breakDuration": schedule.break_duration,
             "maxAppointmentsPerDay": schedule.max_appointments_per_day
-        }
-    })
+        },
+        "Program başarıyla görüntülendi"
+    )
 
 
 # Update schedule
@@ -77,7 +77,7 @@ def get_schedule_view(request):
 @csrf_exempt
 def update_schedule_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -113,13 +113,10 @@ def update_schedule_view(request):
                 }
             )
 
-        return JsonResponse({
-            "success": True,
-            "message": "Program ayarları başarıyla güncellendi"
-        })
+        return api_success(message="Program ayarları başarıyla güncellendi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Güncelleme hatası: {str(e)}"}, status=400)
+        return api_error(f"Program güncellenirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Available slots on a day
@@ -129,12 +126,12 @@ def get_available_slots_view(request):
     academician_id = request.GET.get('academicianId')
 
     if not all([date_str, academician_id]):
-        return JsonResponse({"success": False, "message": "Eksik parametre"}, status=400)
+        return api_error("date_str ve academician_id gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Genel Ayarları Getir
     schedule = Schedule.objects.filter(academician_id=academician_id).first()
     if not schedule:
-        return JsonResponse({"success": False, "message": "Program bulunamadı"}, status=404)
+        return api_error("Program bulunamadı", "SCHEDULE_NOT_FOUND", status=404)
 
     # 2. Tarih ve Gün İsmi Tespiti
     target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -148,7 +145,7 @@ def get_available_slots_view(request):
     ).order_by('start_time')
 
     if not working_slots.exists():
-        return JsonResponse({"success": True, "data": []})
+        return api_success(data=[])
 
     # 4. Mevcut Randevuları ve Şimdiki Zamanı Çek
     existing_apps = Appointment.objects.filter(
@@ -185,10 +182,7 @@ def get_available_slots_view(request):
             # Adım at (Slot + Mola)
             current_time += total_step
 
-    return JsonResponse({
-        "success": True,
-        "data": all_generated_slots
-    })
+    return api_success(data=all_generated_slots)
 
 
 # Available dates
@@ -199,7 +193,7 @@ def get_available_dates_view(request):
     year = request.GET.get('year')   # YYYY
 
     if not all([academician_id, month, year]):
-        return JsonResponse({"success": False, "message": "Eksik parametre"}, status=400)
+        return api_error("academicianId, month ve year gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
 
     try:
         month = int(month)
@@ -213,7 +207,7 @@ def get_available_dates_view(request):
         ).values_list('day', flat=True).distinct()
 
         if not enabled_days:
-            return JsonResponse({"success": True, "data": []})
+            return api_success(data=[])
 
         # 2. O ayın günlerini iterate edelim
         available_dates = []
@@ -242,10 +236,7 @@ def get_available_dates_view(request):
 
             available_dates.append(current_date.isoformat())
 
-        return JsonResponse({
-            "success": True,
-            "data": available_dates
-        })
+        return api_success(data=available_dates)
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": str(e)}, status=400)
+        return api_error(f"Müsait tarihleri getirilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

@@ -1,10 +1,11 @@
 import json
 
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import Appointment, Availability
+from core.utils.response_helpers import api_error, api_success
+
 
 # Appointments view (separating GET and POST)
 @csrf_exempt
@@ -13,13 +14,13 @@ def appointments_view(request):
         return list_appointments_view(request)
     elif request.method == "POST":
         return create_appointment_view(request)
-    return JsonResponse({"success": False, "message": "Sadece GET ve POST istekleri kabul edilir"}, status=405)
+    return api_error("Sadece GET ve POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
 # Academician List
 
 def list_appointments_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Sadece GET kabul edilir"}, status=405)
+        return api_error("Sadece GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     # 1. Query Parametrelerini Al
     user_id = request.GET.get('userId')
@@ -62,16 +63,14 @@ def list_appointments_view(request):
             "createdAt": app.creation_date.isoformat()
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)
+
 
 # Appointment Details
 
 def appointment_detail_view(request, appointment_id):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Sadece GET kabul edilir"}, status=405)
+        return api_error("Sadece GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     # 1. Randevuyu bul, yoksa 404 dön
     # select_related kullanarak öğrenci, hoca ve slot verilerini tek seferde çekiyoruz
@@ -98,17 +97,15 @@ def appointment_detail_view(request, appointment_id):
         "createdAt": app.creation_date.isoformat()
     }
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)
+
 
 # Create Appointment
 
 def create_appointment_view(request):
     # Bu metot sadece POST kabul eder
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Sadece POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -128,11 +125,11 @@ def create_appointment_view(request):
         ).first()
 
         if not slot:
-            return JsonResponse({"success": False, "message": "Seçilen hoca, gün ve saat için uygun müsaitlik bulunamadı."}, status=404)
+            return api_error("Seçilen hoca, gün ve saat için uygun müsaitlik bulunamadı", "SLOT_NOT_FOUND", status=404)
 
         # 3. Müsaitlik Kontrolü
         if not slot.is_available():
-            return JsonResponse({"success": False, "message": "Maalesef bu randevu saati az önce doldu."}, status=400)
+            return api_error("Maalesef bu randevu az önce doldu", "SLOT_OCCUPIED", status=400)
 
         # 4. Randevuyu Kaydet
         # NOT: request.user'ın dolu olması için login olunmuş olmalı.
@@ -145,10 +142,8 @@ def create_appointment_view(request):
             notes=notes
         )
 
-        return JsonResponse({
-            "success": True,
-            "message": "Randevu talebi oluşturuldu",
-            "data": {
+        return api_success(
+            {
                 "id": appointment.id,
                 "status": appointment.status,
                 "academicianId": aca_id,
@@ -156,11 +151,13 @@ def create_appointment_view(request):
                 "time": req_time,
                 "subject": subject,
                 "createdAt": appointment.creation_date.isoformat()
-            }
-        }, status=201)
+            },
+            "Randevu talebi oluşturuldu",
+            status=201
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Bir hata oluştu: {str(e)}"}, status=400)
+        return api_error(f"Randevu oluşturulurken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Approve Appointment (by Academician)
@@ -168,38 +165,35 @@ def create_appointment_view(request):
 @csrf_exempt
 def approve_appointment_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         appointment_id = data.get('id')
 
         if not appointment_id:
-            return JsonResponse({"success": False, "message": "Randevu ID'si gerekli"}, status=400)
+            return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Randevuyu bul (select_related ile hocayı da çekebiliriz güvenlik kontrolü için)
         appointment = Appointment.objects.filter(id=appointment_id).first()
 
         if not appointment:
-            return JsonResponse({"success": False, "message": "Randevu bulunamadı"}, status=404)
+            return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
 
         if appointment.academician != request.user:
-            return JsonResponse({"success": False, "message": "Bu randevuyu onaylama yetkiniz yok"}, status=403)
+            return api_error("Bu randevuyu onaylama yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
 
         # 2. Durumu güncelle
         if appointment.status != 'pending':
-            return JsonResponse({"success": True, "message": "Bu randevu onay beklemiyor"})
+            return api_success(message="Bu randevu onay beklemiyor")
 
         appointment.status = 'confirmed'
         appointment.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Randevu onaylandı"
-        })
+        return api_success(message="Randevu onaylandı")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Randevu onaylanırken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Reject Appointment (by Academician)
@@ -207,7 +201,7 @@ def approve_appointment_view(request):
 @csrf_exempt
 def reject_appointment_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -215,16 +209,16 @@ def reject_appointment_view(request):
         reason = data.get('reason', "Gerekçe belirtilmedi")
 
         if not appointment_id:
-            return JsonResponse({"success": False, "message": "Randevu ID'si gerekli"}, status=400)
+            return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Randevuyu bul
         appointment = Appointment.objects.filter(id=appointment_id).first()
 
         if not appointment:
-            return JsonResponse({"success": False, "message": "Randevu bulunamadı"}, status=404)
+            return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
 
         if appointment.academician != request.user:
-            return JsonResponse({"success": False, "message": "Bu randevuyu reddetme yetkiniz yok"}, status=403)
+            return api_error("Bu randevuyu reddetme yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
 
         # 2. Durumu güncelle ve gerekçeyi notlara/reason alanına işle
         appointment.status = 'rejected'
@@ -238,13 +232,10 @@ def reject_appointment_view(request):
 
         appointment.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Randevu reddedildi"
-        })
+        return api_success(message="Randevu reddedildi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Randevu reddedilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Cancel Appointment
@@ -252,7 +243,7 @@ def reject_appointment_view(request):
 @csrf_exempt
 def cancel_appointment_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -260,20 +251,20 @@ def cancel_appointment_view(request):
         reason = data.get('reason', "İptal nedeni belirtilmedi")
 
         if not appointment_id:
-            return JsonResponse({"success": False, "message": "Randevu ID'si gerekli"}, status=400)
+            return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Randevuyu bul
         appointment = Appointment.objects.filter(id=appointment_id).first()
 
         if not appointment:
-            return JsonResponse({"success": False, "message": "Randevu bulunamadı"}, status=404)
+            return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
 
         if appointment.academician != request.user:
-            return JsonResponse({"success": False, "message": "Bu randevuyu iptal etme yetkiniz yok"}, status=403)
+            return api_error("Bu randevuyu iptal etme yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
 
         # 2. Daha önce iptal edilmiş veya tamamlanmış mı kontrolü
         if appointment.status in ['cancelled', 'completed']:
-            return JsonResponse({"success": False, "message": f"Bu randevu zaten {appointment.get_status_display()}"}, status=400)
+            return api_error(f"Bu randevu zaten {appointment.get_status_display()}", "APPOINTMENT_IS_ARCHIVED", status=400)
 
         # 3. Durumu güncelle ve iptal nedenini işle
         appointment.status = 'cancelled'
@@ -286,10 +277,7 @@ def cancel_appointment_view(request):
 
         appointment.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Randevu iptal edildi"
-        })
+        return api_success(message="Randevu iptal edildi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Hata: {str(e)}"}, status=400)
+        return api_error(f"Randevu iptal edilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

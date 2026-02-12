@@ -1,7 +1,6 @@
 import json
 
 from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -9,20 +8,21 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser
 from core.models.announcement import Announcement
+from core.utils.response_helpers import api_error, api_success
 
 
 def get_announcements_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     user_id = request.GET.get('userId')
     if not user_id:
-        return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+        return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Kullanıcıyı ve rolünü bul (Filtreleme için)
     user = AbstractCustomUser.objects.filter(id=user_id).first()
     if not user:
-        return JsonResponse({"success": False, "message": "Kullanıcı bulunamadı"}, status=404)
+        return api_error("Kullanıcı bulunamadı", "USER_NOT_FOUND", status=404)
 
     now = timezone.now()
 
@@ -54,10 +54,7 @@ def get_announcements_view(request):
             "expiresAt": ann.expires_at.isoformat() if ann.expires_at else None
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)
 
 
 # Create Announcement
@@ -65,7 +62,7 @@ def get_announcements_view(request):
 @csrf_exempt
 def create_announcement_view(request):
     if request.method != "POST":
-        return JsonResponse({"success": False, "message": "Yalnızca POST kabul edilir"}, status=405)
+        return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -74,7 +71,7 @@ def create_announcement_view(request):
         title = data.get('title')
         content = data.get('content')
         if not title or not content:
-            return JsonResponse({"success": False, "message": "Başlık ve içerik gereklidir"}, status=400)
+            return api_error("title ve content gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
         # 2. Tarih formatını parse etme
         expires_at = data.get('expiresAt')
@@ -96,20 +93,19 @@ def create_announcement_view(request):
             author=request.user if request.user.is_authenticated else None
         )
 
-        return JsonResponse({
-            "success": True,
-            "message": "Duyuru oluşturuldu",
-            "data": {
+        return api_success(
+            {
                 "id": announcement.id,
                 "title": announcement.title,
                 "createdAt": announcement.created_at.isoformat(),
                 "views": announcement.view_count,
                 "status": announcement.status
-            }
-        }, status=201)
+            },
+            status=201
+        )
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Duyuru oluşturulurken hata: {str(e)}"}, status=400)
+        return api_error(f"Duyuru oluşturulurken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Update Announcement
@@ -117,14 +113,14 @@ def create_announcement_view(request):
 @csrf_exempt
 def update_announcement_view(request):
     if request.method != "PUT":
-        return JsonResponse({"success": False, "message": "Yalnızca PUT kabul edilir"}, status=405)
+        return api_error("Yalnızca PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         ann_id = data.get('id')
 
         if not ann_id:
-            return JsonResponse({"success": False, "message": "Güncellenecek duyurunun 'id' değeri gereklidir"}, status=400)
+            return api_error("id gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Duyuruyu getir (Bulamazsa 404 döner)
         announcement = get_object_or_404(Announcement, id=ann_id)
@@ -143,13 +139,10 @@ def update_announcement_view(request):
         # 3. Veritabanına kaydet
         announcement.save()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Duyuru başarıyla güncellendi"
-        })
+        return api_success(message="Duyuru başarıyla güncellendi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Güncelleme sırasında hata: {str(e)}"}, status=400)
+        return api_error(f"Duyuru güncellenirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
 # Delete Announcement
@@ -157,14 +150,14 @@ def update_announcement_view(request):
 @csrf_exempt
 def delete_announcement_view(request):
     if request.method not in ["POST", "DELETE"]:
-        return JsonResponse({"success": False, "message": "Yalnızca POST veya DELETE kabul edilir"}, status=405)
+        return api_error("Yalnızca POST veya DELETE kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
         ann_id = data.get('id')
 
         if not ann_id:
-            return JsonResponse({"success": False, "message": "Silinecek duyurunun 'id' değeri gereklidir"}, status=400)
+            return api_error("id gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
         # 1. Duyuruyu getir
         announcement = get_object_or_404(Announcement, id=ann_id)
@@ -173,10 +166,7 @@ def delete_announcement_view(request):
         # Bu işlem ilişkili tüm AnnouncementView kayıtlarını da temizler (CASCADE)
         announcement.delete()
 
-        return JsonResponse({
-            "success": True,
-            "message": "Duyuru başarıyla silindi"
-        })
+        return api_success(message="Duyuru başarıyla silindi")
 
     except Exception as e:
-        return JsonResponse({"success": False, "message": f"Silme işlemi sırasında hata: {str(e)}"}, status=400)
+        return api_error(f"Duyuru silinirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

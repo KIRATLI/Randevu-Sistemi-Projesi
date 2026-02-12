@@ -1,14 +1,14 @@
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
 from core.models import Availability, Academician
+from core.utils.response_helpers import api_error, api_success
 
 
 # Academician List
 
 def list_academicians_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     # 1. Sadece akademisyen olan kullanıcıları filtrele
     academicians = Academician.objects.all()
@@ -27,17 +27,14 @@ def list_academicians_view(request):
             "available": has_availability
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    }, safe=False)
+    return api_success(data)
 
 
 # Academician Details
 
 def academician_detail_view(request, aca_id): # URL'den gelen 'id' burada parametre olarak alınır
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Sadece GET kabul edilir"}, status=405)
+        return api_error("Sadece GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     # 1. Akademisyeni bul, yoksa 404 döndür
     aca = get_object_or_404(Academician, id=aca_id)
@@ -64,7 +61,4 @@ def academician_detail_view(request, aca_id): # URL'den gelen 'id' burada parame
         "available": has_availability
     }
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)

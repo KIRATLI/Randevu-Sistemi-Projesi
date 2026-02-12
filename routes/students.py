@@ -1,13 +1,13 @@
 from django.db.models import Count, Q, Max, Min
-from django.http import JsonResponse
 from django.utils import timezone
 
 from core.models import Student
+from core.utils.response_helpers import api_error, api_success
 
 
 def get_students_list_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     now = timezone.now()
 
@@ -42,21 +42,18 @@ def get_students_list_view(request):
             "status": "active" if student.is_active else "inactive"
         })
 
-    return JsonResponse({
-        "success": True,
-        "data": data
-    })
+    return api_success(data)
 
 
 # Student Details
 
 def get_student_detail_view(request):
     if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Yalnızca GET kabul edilir"}, status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     student_id = request.GET.get('userId')
     if not student_id:
-        return JsonResponse({"success": False, "message": "userId gereklidir"}, status=400)
+        return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Öğrenciyi, profili ve randevu sayısını çekiyoruz
     student = Student.objects.filter(id=student_id).select_related('profile').annotate(
@@ -64,7 +61,7 @@ def get_student_detail_view(request):
     ).first()
 
     if not student:
-        return JsonResponse({"success": False, "message": "Öğrenci bulunamadı"}, status=404)
+        return api_error("Öğrenci bulunamadı", "USER_NOT_FOUND", status=404)
 
     # 2. Öğrencinin tüm randevularını listeliyoruz
     appointments_qs = student.student_appointments.all().order_by('-date', '-start_time')
@@ -80,9 +77,8 @@ def get_student_detail_view(request):
         })
 
     # 3. JSON Yanıtı
-    return JsonResponse({
-        "success": True,
-        "data": {
+    return api_success(
+        {
             "id": student.id,
             "name": student.get_full_name() or student.username,
             "studentNo": student.number, # Senin modelinde 'number' olarak geçiyordu
@@ -95,4 +91,4 @@ def get_student_detail_view(request):
             "notes": student.profile.bio,
             "registrationDate": student.date_joined.strftime("%Y-%m-%d") # Django'nun default alanı
         }
-    })
+    )

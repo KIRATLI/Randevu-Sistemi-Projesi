@@ -2,9 +2,11 @@ from django.db.models import Count, Q, Max, Min
 from django.utils import timezone
 
 from core.models import Student
+from core.utils.decorators import token_required
 from core.utils.response_helpers import api_error, api_success
 
 
+@token_required
 def get_students_list_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -37,8 +39,8 @@ def get_students_list_view(request):
             "totalAppointments": student.total_count,
             "completedAppointments": student.completed_count,
             "cancelledAppointments": student.cancelled_count,
-            "lastAppointment": student.last_app_date.isoformat() if student.last_app_date else None,
-            "nextAppointment": student.next_app_date.isoformat() if student.next_app_date else None,
+            "lastAppointment": student.last_app_date.strftime('%Y-%m-%dT%H:%M:%SZ') if student.last_app_date else None,
+            "nextAppointment": student.next_app_date.strftime('%Y-%m-%dT%H:%M:%SZ') if student.next_app_date else None,
             "status": "active" if student.is_active else "inactive"
         })
 
@@ -47,6 +49,7 @@ def get_students_list_view(request):
 
 # Student Details
 
+@token_required
 def get_student_detail_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -70,7 +73,7 @@ def get_student_detail_view(request):
     for app in appointments_qs:
         appointments_list.append({
             "id": app.id,
-            "date": app.date.isoformat(),
+            "date": app.date.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "time": app.start_time.strftime("%H:%M"),
             "subject": app.subject,
             "status": app.status

@@ -4,10 +4,12 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser
+from core.utils.decorators import token_required
 from core.utils.response_helpers import api_error, api_success
 
 
 @csrf_exempt
+@token_required
 def profile_view(request):
     if request.method == "GET":
         return get_profile_view(request)
@@ -78,15 +80,20 @@ def update_profile_view(request):
     if request.method != "PUT":
         return api_error("Yalnızca PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
     try:
         data = json.loads(request.body)
-        user_id = data.get('userId')
+        target_user_id = data.get('userId')
+        # if not user_id:
+        #     return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
-        if not user_id:
-            return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
+        if str(target_user_id) != str(requester_id) and requester_role != 'admin':
+            return api_error("Bu profili güncellemek için yetkiniz yok", "PROFILE_PERMISSION_DENIED", status=403)
 
         # 1. Kullanıcıyı ve Profili getir
-        user = get_object_or_404(AbstractCustomUser, id=user_id)
+        user = get_object_or_404(AbstractCustomUser, id=target_user_id)
         profile = user.profile
 
         # 2. User tablosundaki 'name' (isim-soyisim) güncelleme
@@ -131,28 +138,48 @@ def update_profile_view(request):
 # Upload avatar
 
 @csrf_exempt
+@token_required
 def upload_avatar_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
     try:
         # FormData'dan gelen userId ve file'ı alıyoruz
-        user_id = request.POST.get('userId')
+        target_user_id = request.POST.get('userId')
         avatar_file = request.FILES.get('file')
 
-        if not user_id or not avatar_file:
-            return api_error("userId ve dosya gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+        if not avatar_file:
+            return api_error("dosya gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        if str(target_user_id) != str(requester_id) and requester_role != 'admin':
+            return api_error("Avatar yüklemek için yetkiniz yok", "PROFILE_PERMISSION_DENIED", status=403)
+
+        # Dosya tipi kontrolü
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif']
+        if avatar_file.content_type not in allowed_types:
+            return api_error("Sadece JPEG, PNG ve GIF formatları kabul edilir.", "INVALID_FILE_TYPE", status=400)
+
+        # Dosya boyutu kontrolü
+        max_size = 5 * 1024 * 1024
+        if avatar_file.size > max_size:
+            return api_error("Dosya boyutu çok büyük. Maksimum limit: 5MB", "FILE_TOO_LARGE", status=400)
 
         # 1. Kullanıcıyı ve Profili bul
-        user = get_object_or_404(AbstractCustomUser, id=user_id)
+        user = get_object_or_404(AbstractCustomUser, id=target_user_id)
         profile = user.profile
 
-        # 2. Dosyayı kaydet
-        # Django eski dosyayı otomatik silmez, eğer istersen burada manuel silebilirsin.
+        # 2. Eski Dosyayı Sil (Eğer bulunuyorsa)
+        if profile.avatar:
+            profile.avatar.delete(save=False)
+
+        # 3. Dosyayı kaydet
         profile.avatar = avatar_file
         profile.save()
 
-        # 3. Full URL'i oluştur
+        # 4. Full URL'i oluştur
         # request.build_absolute_uri() kullanarak tam adresi (http://...) döndürebiliriz
         avatar_url = request.build_absolute_uri(profile.avatar.url)
 
@@ -165,9 +192,13 @@ def upload_avatar_view(request):
 # Change password
 
 @csrf_exempt
+@token_required
 def change_password_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     try:
         data = json.loads(request.body)
@@ -176,8 +207,11 @@ def change_password_view(request):
         new_password = data.get('newPassword')
 
         # Gerekli alanların kontrolü
-        if not all([user_id, old_password, new_password]):
-            return api_error("userId, oldPassword ve newPassword gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+        if not all([old_password, new_password]):
+            return api_error("oldPassword ve newPassword gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        if str(requester_id) != str(user_id) and requester_role != 'admin':
+            return api_error("Bu işlemi yapmak için yetkiniz yok", "PROFILE_PERMISSION_DENIED", status=403)
 
         # 1. Kullanıcıyı getir
         user = get_object_or_404(AbstractCustomUser, id=user_id)

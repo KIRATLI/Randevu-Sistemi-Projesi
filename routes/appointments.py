@@ -4,23 +4,29 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import Appointment, Availability
+from core.utils.decorators import token_required, role_required
 from core.utils.response_helpers import api_error, api_success
 
 
 # Appointments view (separating GET and POST)
 @csrf_exempt
+@token_required
 def appointments_view(request):
     if request.method == "GET":
         return list_appointments_view(request)
     elif request.method == "POST":
         return create_appointment_view(request)
-    return api_error("Sadece GET ve POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+    return api_error("Yalnızca GET ve POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
 # Academician List
 
 def list_appointments_view(request):
     if request.method != "GET":
-        return api_error("Sadece GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+        return api_error("Yalnızca GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    # Requester info
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     # 1. Query Parametrelerini Al
     user_id = request.GET.get('userId')
@@ -30,10 +36,20 @@ def list_appointments_view(request):
 
     # 2. Dinamik Filtreleme Sözlüğü Oluştur
     filters = {}
-    if user_id:
-        filters['student_id'] = user_id
-    if aca_id:
-        filters['academician_id'] = aca_id
+
+    # 2.1. Güvenlik ve Yetki Kontrolü
+    if requester_role == 'admin':
+        if user_id: filters['student_id'] = user_id
+        if aca_id: filters['academician_id'] = aca_id
+    elif requester_role == 'student':
+        filters['student_id'] = requester_id
+        if aca_id: filters['academician_id'] = aca_id
+    elif requester_role == 'academician':
+        filters['academician_id'] = requester_id
+        if user_id: filters['student_id'] = user_id
+    else:
+        return api_error("Bilinmeyen rol erişimi engellendi.", "INVALID_ROLE", status=403)
+
     if status:
         filters['status'] = status
     if date:
@@ -60,7 +76,7 @@ def list_appointments_view(request):
             "status": app.status,
             "subject": app.subject,
             "notes": app.note_message,
-            "createdAt": app.creation_date.isoformat()
+            "createdAt": app.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
         })
 
     return api_success(data)
@@ -68,9 +84,10 @@ def list_appointments_view(request):
 
 # Appointment Details
 
+@token_required
 def appointment_detail_view(request, appointment_id):
     if request.method != "GET":
-        return api_error("Sadece GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+        return api_error("Yalnızca GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     # 1. Randevuyu bul, yoksa 404 dön
     # select_related kullanarak öğrenci, hoca ve slot verilerini tek seferde çekiyoruz
@@ -78,9 +95,18 @@ def appointment_detail_view(request, appointment_id):
         Appointment.objects.select_related('student', 'academician', 'availability'),
         id=appointment_id
     )
+
+    # 2. Yetki kontrolü
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
+    if requester_role != 'admin':
+        if requester_id != app.student_id and requester_id != app.academician_id:
+            return api_error("Bu randevu detaylarını görme yetkiniz yok.", "PERMISSION_DENIED", status=403)
+
     academician = app.academician
 
-    # 2. Response verisini hazırla
+    # 3. Response verisini hazırla
     data = {
         "id": app.id,
         "studentId": app.student.id,
@@ -94,7 +120,7 @@ def appointment_detail_view(request, appointment_id):
         "statusLabel": app.status,
         "subject": app.subject,
         "notes": app.note_message,
-        "createdAt": app.creation_date.isoformat()
+        "createdAt": app.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
     }
 
     return api_success(data)
@@ -103,9 +129,8 @@ def appointment_detail_view(request, appointment_id):
 # Create Appointment
 
 def create_appointment_view(request):
-    # Bu metot sadece POST kabul eder
     if request.method != "POST":
-        return api_error("Sadece POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
 
     try:
         data = json.loads(request.body)
@@ -150,7 +175,7 @@ def create_appointment_view(request):
                 "date": req_date,
                 "time": req_time,
                 "subject": subject,
-                "createdAt": appointment.creation_date.isoformat()
+                "createdAt": appointment.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
             },
             "Randevu talebi oluşturuldu",
             status=201
@@ -163,6 +188,8 @@ def create_appointment_view(request):
 # Approve Appointment (by Academician)
 
 @csrf_exempt
+@token_required
+@role_required(['academician','admin'])
 def approve_appointment_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
@@ -199,6 +226,8 @@ def approve_appointment_view(request):
 # Reject Appointment (by Academician)
 
 @csrf_exempt
+@token_required
+@role_required(['academician','admin'])
 def reject_appointment_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
@@ -241,6 +270,8 @@ def reject_appointment_view(request):
 # Cancel Appointment
 
 @csrf_exempt
+@token_required
+@role_required(['academician', 'admin'])
 def cancel_appointment_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)

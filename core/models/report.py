@@ -20,4 +20,4 @@ class SystemReport(models.Model):
         verbose_name = "Sistem Raporu"
 
     def __str__(self):
-        return f"Rapor - {self.generated_at.strftime('%Y-%m-%d %H:%M')}"
+        return f"Rapor - {self.generated_at.strftime('%Y-%m-%dT%H:%M:%SZ')}"

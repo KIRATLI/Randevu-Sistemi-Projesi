@@ -8,35 +8,51 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser
 from core.models.announcement import Announcement
+from core.utils.decorators import token_required, role_required
 from core.utils.response_helpers import api_error, api_success
 
 
+@token_required
 def get_announcements_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
-    user_id = request.GET.get('userId')
-    if not user_id:
-        return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
+    target_user_id = request.GET.get('userId')
+    # userId DOCUMENTATION da zorunlu fakat bu sadece adminlere anlamlı olacağı için optional olarak değiştirildi.
+    # if not target_user_id:
+    #     return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
-    # 1. Kullanıcıyı ve rolünü bul (Filtreleme için)
-    user = AbstractCustomUser.objects.filter(id=user_id).first()
-    if not user:
-        return api_error("Kullanıcı bulunamadı", "USER_NOT_FOUND", status=404)
+    # 1. Token'dan gerçek bilgileri al
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
+    # 2. Hangi rolün duyurularını listeleyeceğimizi belirle
+    # Varsayılan olarak istek atan kişinin kendi rolü
+    filter_role = requester_role
+
+    if requester_role == 'admin' and target_user_id:
+        # Eğer admin bir userId göndermişse, o kullanıcının rolünü bulalım
+        target_user = AbstractCustomUser.objects.filter(id=target_user_id).first()
+        if target_user:
+            filter_role = target_user.role
+            # Admin burada "bir kullanıcı gibi" bakıyor
+        else:
+            return api_error("Hedef kullanıcı bulunamadı", "USER_NOT_FOUND", status=404)
 
     now = timezone.now()
 
-    # 2. Filtreleme Mantığı:
-    # - Durumu 'active' olmalı.
-    # - Süresi dolmamış olmalı (expires_at null olabilir veya gelecek bir tarih olmalı).
-    # - Hedef kitle kullanıcının rolüyle eşleşmeli veya 'all' (herkes) olmalı.
-    announcements = Announcement.objects.filter(
-        status='active'
-    ).filter(
-        Q(expires_at__isnull=True) | Q(expires_at__gt=now)
-    ).filter(
-        Q(target_audience='all') | Q(target_audience=user.role)
-    ).select_related('author').order_by('-created_at') # En yeni en üstte
+    # 3. Filtreleme
+    # Eğer admin spesifik bir userId göndermemişse (target_user_id None ise)
+    # ve kendisi admin ise her şeyi görebilir.
+    if requester_role == 'admin' and not target_user_id:
+        query = Q(status='active') & (Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+    else:
+        # Öğrenci, Akademisyen veya "Kullanıcı modundaki" Admin için filtre:
+        query = Q(status='active') & \
+                (Q(expires_at__isnull=True) | Q(expires_at__gt=now)) & \
+                (Q(target_audience='all') | Q(target_audience=filter_role))
+
+    announcements = Announcement.objects.filter(query).select_related('author').order_by('-created_at')
 
     data = []
     for ann in announcements:
@@ -47,11 +63,11 @@ def get_announcements_view(request):
             "type": ann.type,
             "targetAudience": ann.target_audience,
             "author": ann.author.get_full_name() if ann.author else "Sistem",
-            "createdAt": ann.created_at.isoformat(),
+            "createdAt": ann.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "status": ann.status,
             "priority": ann.priority,
             "views": ann.view_count, # Sinyal ile güncellediğimiz denormalize alan
-            "expiresAt": ann.expires_at.isoformat() if ann.expires_at else None
+            "expiresAt": ann.expires_at.strftime('%Y-%m-%dT%H:%M:%SZ') if ann.expires_at else None
         })
 
     return api_success(data)
@@ -60,6 +76,8 @@ def get_announcements_view(request):
 # Create Announcement
 
 @csrf_exempt
+@token_required
+@role_required(['academician', 'admin'])
 def create_announcement_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -97,7 +115,7 @@ def create_announcement_view(request):
             {
                 "id": announcement.id,
                 "title": announcement.title,
-                "createdAt": announcement.created_at.isoformat(),
+                "createdAt": announcement.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 "views": announcement.view_count,
                 "status": announcement.status
             },
@@ -111,9 +129,14 @@ def create_announcement_view(request):
 # Update Announcement
 
 @csrf_exempt
+@token_required
+@role_required(['academician', 'admin'])
 def update_announcement_view(request):
     if request.method != "PUT":
         return api_error("Yalnızca PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     try:
         data = json.loads(request.body)
@@ -124,6 +147,13 @@ def update_announcement_view(request):
 
         # 1. Duyuruyu getir (Bulamazsa 404 döner)
         announcement = get_object_or_404(Announcement, id=ann_id)
+
+        if str(requester_id) != str(announcement.author_id) and requester_role != 'admin':
+            return api_error(
+                message="Bu duyuruyu güncelleme yetkiniz bulunmuyor",
+                code="ANNOUNCEMENT_PERMISSION_DENIED",
+                status=403
+            )
 
         # 2. Alanları güncelle (Eğer request içinde varsa)
         # dict.get(key, default) yapısı sayesinde veri gelmediyse eski halini koruruz
@@ -148,9 +178,14 @@ def update_announcement_view(request):
 # Delete Announcement
 
 @csrf_exempt
+@token_required
+@role_required(['academician', 'admin'])
 def delete_announcement_view(request):
     if request.method not in ["POST", "DELETE"]:
         return api_error("Yalnızca POST veya DELETE kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     try:
         data = json.loads(request.body)
@@ -161,6 +196,12 @@ def delete_announcement_view(request):
 
         # 1. Duyuruyu getir
         announcement = get_object_or_404(Announcement, id=ann_id)
+
+        if str(requester_id) != str(announcement.author_id) and requester_role != 'admin':
+            return api_error(
+                message="Bu duyuruyu silme yetkiniz bulunmuyor",
+                code="ANNOUNCEMENT_PERMISSION_DENIED",
+                status=403)
 
         # 2. Duyuruyu sil
         # Bu işlem ilişkili tüm AnnouncementView kayıtlarını da temizler (CASCADE)

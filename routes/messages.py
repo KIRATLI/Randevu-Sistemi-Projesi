@@ -7,11 +7,14 @@ from django.views.decorators.csrf import csrf_exempt
 from core.models import AbstractCustomUser
 from core.models.message import Message, Thread
 from core.models.notification import Notification
+from core.utils.decorators import token_required, role_required
 from core.utils.response_helpers import api_error, api_success
 
 
 # Messages
 
+@csrf_exempt
+@token_required
 def messages_view(request):
     if request.method == "GET":
         return get_messages_view(request)
@@ -26,17 +29,24 @@ def get_messages_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
-    user_id = request.GET.get('userId')
-    if not user_id:
-        return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+    target_user_id = request.GET.get('userId')
+    # userId DOCUMENTATION da zorunlu fakat bu sadece adminlere anlamlı olacağı için optional olarak değiştirildi.
+    # if not user_id:
+    #     return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     # 1. Kullanıcıyı getir
-    user = get_object_or_404(AbstractCustomUser, id=user_id)
+    user_id_to_query = requester_id
+
+    if requester_role == 'admin' and target_user_id:
+        user_id_to_query = target_user_id
 
     # 2. Kullanıcının dahil olduğu thread'lerdeki tüm mesajları getir
     # select_related ve prefetch_related kullanımı performansı %80 artırır
     messages = Message.objects.filter(
-        thread__participants=user
+        thread__participants__id=user_id_to_query
     ).select_related('sender', 'thread', 'reply_to').prefetch_related('thread__participants').order_by('-date')
 
     data = []
@@ -60,7 +70,7 @@ def get_messages_view(request):
             "receiverRole": r_role,
             "subject": msg.thread.subject,
             "content": msg.content,
-            "date": msg.date.isoformat(),
+            "date": msg.date.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "read": msg.is_read,
             "threadId": msg.thread.id,
             "replyTo": msg.reply_to_id
@@ -71,23 +81,28 @@ def get_messages_view(request):
 
 # Send Message
 
-@csrf_exempt
 def send_message_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     try:
         data = json.loads(request.body)
 
         # Request'ten verileri al (Senin pattern'ine göre senderId'yi de bekliyoruz)
-        sender_id = data.get('userId') # Mesajı gönderen
+        sender_id = data.get('userId')
         receiver_id = data.get('receiverId')
         subject = data.get('subject', 'Konu Yok')
         content = data.get('content')
         thread_id = data.get('threadId')
 
-        if not all([sender_id, receiver_id, content]):
-            return api_error("userId, receiverId ve content gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+        if str(sender_id) != requester_id and requester_role != 'admin':
+            return api_error("Bu mesajı göndermek için yetkiniz yok", "MESSAGE_PERMISSION_DENIED", status=403)
+
+        if not all([receiver_id, content]):
+            return api_error("receiverId ve content gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         sender = get_object_or_404(AbstractCustomUser, id=sender_id)
         receiver = get_object_or_404(AbstractCustomUser, id=receiver_id)
@@ -118,7 +133,7 @@ def send_message_view(request):
                 "receiverId": receiver.id,
                 "subject": thread.subject,
                 "content": message.content,
-                "date": message.date.isoformat(),
+                "date": message.date.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 "read": message.is_read,
                 "threadId": thread.id
             },
@@ -132,6 +147,7 @@ def send_message_view(request):
 
 # Messages in a Thread
 
+@token_required
 def get_thread_messages_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -140,8 +156,16 @@ def get_thread_messages_view(request):
     if not thread_id:
         return api_error("threadId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
     # 1. Thread'i ve katılımcıları getir (Hata kontrolü için)
     thread = get_object_or_404(Thread, id=thread_id)
+
+    is_participant = thread.participants.filter(id=requester_id).exists()
+
+    if not is_participant and requester_role != 'admin':
+        return api_error("Bu konuşmaya erişim yetkiniz bulunmuyor.", "MESSAGE_PERMISSION_DENIED", status=403)
 
     # 2. Thread içindeki tüm mesajları kronolojik (eskiden yeniye) getir
     # select_related: sender ve reply_to verilerini tek sorguda çeker
@@ -169,7 +193,7 @@ def get_thread_messages_view(request):
             "receiverRole": receiver.role,
             "subject": thread.subject,
             "content": msg.content,
-            "date": msg.date.isoformat(),
+            "date": msg.date.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "read": msg.is_read,
             "threadId": thread.id,
             "replyTo": msg.reply_to_id
@@ -181,9 +205,12 @@ def get_thread_messages_view(request):
 # Mark read the message
 
 @csrf_exempt
+@token_required
 def mark_message_read_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
 
     try:
         data = json.loads(request.body)
@@ -194,6 +221,11 @@ def mark_message_read_view(request):
 
         # 1. Mesajı bul
         message = get_object_or_404(Message, id=message_id)
+
+        is_participant = message.thread.participants.filter(id=requester_id).exists()
+
+        if not is_participant:
+            return api_error("Bu mesaj üzerinde işlem yapma yetkiniz yok.", "MESSAGE_PERMISSION_DENIED", status=403)
 
         # 2. Eğer zaten okunduysa boşuna işlem yapma, değilse güncelle
         if not message.is_read:
@@ -209,9 +241,14 @@ def mark_message_read_view(request):
 # Delete a message
 
 @csrf_exempt
+@token_required
+@role_required('admin')
 def delete_message_view(request):
     if request.method != "DELETE":
         return api_error("Yalnızca DELETE kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     try:
         data = json.loads(request.body)
@@ -222,6 +259,11 @@ def delete_message_view(request):
 
         # 1. Mesajı bul
         message = Message.objects.filter(id=message_id).first()
+
+        is_participant = message.thread.participants.filter(id=requester_id).exists()
+
+        if not is_participant and requester_role != 'admin':
+            return api_error("Bu mesajı silme yetkiniz yok.", "MESSAGE_PERMISSION_DENIED", status=403)
 
         if not message:
             return api_error("Mesaj bulunamadı", "MESSAGE_NOT_FOUND", status=404)
@@ -239,16 +281,23 @@ def delete_message_view(request):
 
 # Unread messages count
 
+@token_required
 def get_unread_count_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
-    user_id = request.GET.get('userId')
-    if not user_id:
-        return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
+    target_user_id = request.GET.get('userId')
+    # if not user_id:
+    #     return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+    if requester_role != 'admin':
+        target_user_id = requester_id
 
     # 1. Kullanıcıyı getir
-    user = get_object_or_404(AbstractCustomUser, id=user_id)
+    user = get_object_or_404(AbstractCustomUser, id=target_user_id)
 
     # 2. Sayma Mantığı:
     # - Mesajın thread'inde kullanıcı katılımcı olmalı (thread__participants=user)
@@ -264,6 +313,9 @@ def get_unread_count_view(request):
 
 # Send a bulk message
 
+@csrf_exempt
+@token_required
+@role_required(['academician', 'admin'])
 def bulk_send_message_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)

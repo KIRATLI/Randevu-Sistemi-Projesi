@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser, Academician
+from core.utils.decorators import token_required
 from core.utils.response_helpers import api_error, api_success
 
 
@@ -35,7 +36,7 @@ def list_users_view(request):
             "department": user.department,
             "status": "active" if user.is_active else "inactive",
             "createdAt": user.date_joined.strftime('%Y-%m-%d'),
-            "lastLogin": user.last_login.isoformat() if user.last_login else None
+            "lastLogin": user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None
         })
 
     return api_success(data, total=total_count)
@@ -92,19 +93,26 @@ def create_user_view(request):
 # Update user
 
 @csrf_exempt
+@token_required
 def update_user_view(request):
     if request.method != "PUT":
         return api_error("Yalnızca PUT kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
     try:
         data = json.loads(request.body)
-        user_id = data.get('userId')
+        target_user_id = data.get('userId')
 
-        if not user_id:
+        if not target_user_id:
             return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
+        if str(target_user_id) != str(requester_id) and requester_role != 'admin':
+            return api_error("Kullanıcıyı güncellemek için yetkiniz yok", "USER_PERMISSION_DENIED", status=403)
+
         # 1. Kullanıcıyı getir
-        user = get_object_or_404(AbstractCustomUser, id=user_id)
+        user = get_object_or_404(AbstractCustomUser, id=target_user_id)
 
         # 2. İsim Güncelleme (First Name / Last Name ayırımı)
         name = data.get('name')
@@ -134,9 +142,13 @@ def update_user_view(request):
 # Delete user
 
 @csrf_exempt
+@token_required
 def delete_user_view(request):
     if request.method != "DELETE":
         return api_error("Yalnızca DELETE kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
 
     try:
         # Request body'den userId'yi alıyoruz
@@ -145,6 +157,9 @@ def delete_user_view(request):
 
         if not user_id:
             return api_error("userId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        if str(user_id) != str(requester_id) and requester_role != 'admin':
+            return api_error("Kullanıcıyı silmek için yetkiniz yok", "USER_PERMISSION_DENIED", status=403)
 
         # 1. Kullanıcıyı bul
         user = AbstractCustomUser.objects.filter(id=user_id).first()
@@ -164,6 +179,7 @@ def delete_user_view(request):
 
 # Search
 
+@token_required
 def global_search_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -221,8 +237,8 @@ def global_search_view(request):
 
 # Stats
 
+@token_required
 def get_user_stats_view(request):
-    # Güvenlik: Sadece GET isteklerini kabul et
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 

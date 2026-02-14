@@ -1,11 +1,13 @@
 from django.shortcuts import get_object_or_404
 
 from core.models import Availability, Academician
+from core.utils.decorators import token_required
 from core.utils.response_helpers import api_error, api_success
 
 
 # Academician List
 
+@token_required
 def list_academicians_view(request):
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -32,9 +34,10 @@ def list_academicians_view(request):
 
 # Academician Details
 
+@token_required
 def academician_detail_view(request, aca_id): # URL'den gelen 'id' burada parametre olarak alınır
     if request.method != "GET":
-        return api_error("Sadece GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+        return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
     # 1. Akademisyeni bul, yoksa 404 döndür
     aca = get_object_or_404(Academician, id=aca_id)

@@ -1,4 +1,6 @@
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
@@ -82,6 +84,13 @@ def is_password_strong(password):
         return False
     return True
 
+def is_email_valid(email):
+    try:
+        validate_email(email)
+        return email.endswith("@ankara.edu.tr")
+    except ValidationError:
+        return False
+
 @csrf_exempt
 def register_view(request):
     if request.method != "POST":
@@ -99,6 +108,10 @@ def register_view(request):
 
         if not all([name, email, password, confirm_password, role]):
             return api_error("name, email, password, confirmPassword ve role gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        # 2. Email Kontrolü
+        if not is_email_valid(email):
+            return api_error("Geçersiz e-posta adresi", "INVALID_EMAIL", status=400)
         
         # 2. Şifre Eşleşme ve Güç Kontrolü
         if password != confirm_password:

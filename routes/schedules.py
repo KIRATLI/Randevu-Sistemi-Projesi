@@ -8,11 +8,14 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser, Appointment
 from core.models.schedule import Schedule, WorkingSlot
+from core.utils.decorators import token_required
 from core.utils.response_helpers import api_error, api_success
 
 
 # Schedule
 
+@csrf_exempt
+@token_required
 def schedule_view(request):
     if request.method == "GET":
         return get_schedule_view(request)
@@ -74,14 +77,19 @@ def get_schedule_view(request):
 
 # Update schedule
 
-@csrf_exempt
 def update_schedule_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
 
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
     try:
         data = json.loads(request.body)
         academician_id = data.get('academicianId')
+
+        if str(academician_id) != str(requester_id) and requester_role != 'admin':
+            return api_error("Programı güncellemek için yetkiniz yok", "SCHEDULE_PERMISSION_DENIED", status=403)
 
         # 1. Akademisyeni doğrula
         academician = get_object_or_404(AbstractCustomUser, id=academician_id, role='academician')
@@ -121,6 +129,7 @@ def update_schedule_view(request):
 
 # Available slots on a day
 
+@token_required
 def get_available_slots_view(request):
     date_str = request.GET.get('date')
     academician_id = request.GET.get('academicianId')
@@ -187,6 +196,7 @@ def get_available_slots_view(request):
 
 # Available dates
 
+@token_required
 def get_available_dates_view(request):
     academician_id = request.GET.get('academicianId')
     month = request.GET.get('month') # 1-12
@@ -234,7 +244,7 @@ def get_available_dates_view(request):
             # Şimdilik sadece mesaisi olan ve gelecekteki günleri dönmek yeterlidir.
             # Frontend zaten güne tıklayınca /available-slots/ çağırıp boşluk yoksa uyarı verecektir.
 
-            available_dates.append(current_date.isoformat())
+            available_dates.append(current_date.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
         return api_success(data=available_dates)
 

@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from core.models import AbstractCustomUser
 from core.models.announcement import Announcement
 from core.utils.decorators import token_required, role_required
+from core.utils.paginator import paginate_queryset
 from core.utils.response_helpers import api_error, api_success
 
 
@@ -23,7 +24,6 @@ def get_announcements_view(request):
     #     return api_error("userId gerekli", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Token'dan gerçek bilgileri al
-    requester_id = request.user_payload.get('id')
     requester_role = request.user_payload.get('role')
 
     # 2. Hangi rolün duyurularını listeleyeceğimizi belirle
@@ -54,8 +54,10 @@ def get_announcements_view(request):
 
     announcements = Announcement.objects.filter(query).select_related('author').order_by('-created_at')
 
+    paginated_data = paginate_queryset(announcements, request)
+
     data = []
-    for ann in announcements:
+    for ann in paginated_data['items']:
         data.append({
             "id": ann.id,
             "title": ann.title,
@@ -70,7 +72,9 @@ def get_announcements_view(request):
             "expiresAt": ann.expires_at.strftime('%Y-%m-%dT%H:%M:%SZ') if ann.expires_at else None
         })
 
-    return api_success(data)
+    paginated_data['items'] = data
+
+    return api_success(paginated_data)
 
 
 # Create Announcement

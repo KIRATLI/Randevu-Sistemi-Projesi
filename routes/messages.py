@@ -8,6 +8,7 @@ from core.models import AbstractCustomUser
 from core.models.message import Message, Thread
 from core.models.notification import Notification
 from core.utils.decorators import token_required, role_required
+from core.utils.paginator import paginate_queryset
 from core.utils.response_helpers import api_error, api_success
 
 
@@ -173,13 +174,14 @@ def get_thread_messages_view(request):
         'sender', 'reply_to'
     ).order_by('date') # 'date' -> En eski mesaj en üstte
 
-    data = []
+    paginated_data = paginate_queryset(messages, request)
 
+    data = []
     # Thread'deki katılımcıları önceden alalım (alıcıyı belirlemek için)
     # 2 kişilik mesajlaşma varsayımıyla:
     participants = list(thread.participants.all())
 
-    for msg in messages:
+    for msg in paginated_data['items']:
         # Alıcıyı bul: Katılımcılardan gönderici olmayanı seç
         receiver = next((p for p in participants if p.id != msg.sender_id), msg.sender)
 
@@ -199,7 +201,9 @@ def get_thread_messages_view(request):
             "replyTo": msg.reply_to_id
         })
 
-    return api_success(data)
+    paginated_data['items'] = data
+
+    return api_success(paginated_data)
 
 
 # Mark read the message

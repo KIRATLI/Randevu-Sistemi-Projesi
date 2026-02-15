@@ -3,7 +3,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
-from django.core.mail import send_mail
 from django.contrib.auth import logout
 from core.models.user import AbstractCustomUser
 from core.security import create_access_token, create_refresh_token, verify_token
@@ -12,6 +11,7 @@ import json
 import re
 from django.db import IntegrityError
 
+from core.utils.email_service import send_templated_email
 from core.utils.response_helpers import api_error, api_success
 
 
@@ -135,7 +135,7 @@ def register_view(request):
 
         # 4. Kullanıcı Oluşturma
         # Django'da create_user şifreyi otomatik hashler
-        AbstractCustomUser.objects.create_user(
+        user = AbstractCustomUser.objects.create_user(
             username=email, # E-postayı kullanıcı adı olarak kullanıyoruz
             email=email,
             password=password,
@@ -145,6 +145,15 @@ def register_view(request):
             department=data.get('department'),
             faculty=data.get('faculty')
         )
+
+        context = {
+            'user_name': user.get_full_name() or user.username,
+            'user_role': user.get_role_display(), # 'Öğrenci', 'Akademisyen' gibi okunabilir hali
+            'email': user.email,
+            'login_url': "https://randevu.ankara.edu.tr/login", # Örnek frontend linki
+            'support_email': "destek@ankara.edu.tr"
+        }
+        send_templated_email('welcome', user.email, context)
 
         return api_success(message="Kayıt başarılı", status=201)
 
@@ -198,15 +207,13 @@ def forgot_password_view(request):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
 
         # Frontend linkini hazırla (Frontend adresine göre ayarla)
-        reset_url = f"http://localhost:3000/reset-password/{uid}/{token}/"
+        reset_link = f"http://localhost:3000/reset-password/{uid}/{token}/"
 
-        send_mail(
-            'Şifre Sıfırlama Talebi - Ankara Üniversitesi',
-            f'Şifrenizi sıfırlamak için şu linke tıklayın: {reset_url}',
-            'noreply@ankara.edu.tr',
-            [email],
-            fail_silently=False,
-        )
+        context = {
+            'user_name': user.get_full_name(),
+            'reset_link': reset_link
+        }
+        send_templated_email('password-reset', email, context)
 
     # Güvenlik gereği kullanıcı yoksa bile "Gönderildi" diyoruz
     # (E-posta adreslerinin ifşa olmaması için)

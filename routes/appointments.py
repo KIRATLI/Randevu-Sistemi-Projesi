@@ -5,6 +5,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.models import Appointment, Availability
 from core.utils.decorators import token_required, role_required
+from core.utils.email_service import send_templated_email
+from core.utils.paginator import paginate_queryset
 from core.utils.response_helpers import api_error, api_success
 
 
@@ -59,8 +61,10 @@ def list_appointments_view(request):
     # 3. Sorguyu Çalıştır (select_related kullanarak performansı artırıyoruz)
     appointments = Appointment.objects.filter(**filters).select_related('student', 'academician', 'availability')
 
+    paginated_data = paginate_queryset(appointments, request)
+
     data = []
-    for app in appointments:
+    for app in paginated_data['items']:
         academician = app.academician
 
         data.append({
@@ -79,7 +83,9 @@ def list_appointments_view(request):
             "createdAt": app.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
         })
 
-    return api_success(data)
+    paginated_data['items'] = data
+
+    return api_success(paginated_data)
 
 
 # Appointment Details
@@ -217,6 +223,14 @@ def approve_appointment_view(request):
         appointment.status = 'confirmed'
         appointment.save()
 
+        context = {
+            'student_name': appointment.student.get_full_name() or appointment.student.username,
+            'academician_name': appointment.academician.get_full_name() or appointment.academician.username,
+            'date': appointment.availability.date.strftime('%Y-%m-%d'),
+            'time': appointment.availability.start_time.strftime('%H:%M'),
+        }
+        send_templated_email('appointment-approved', appointment.student.email, context)
+
         return api_success(message="Randevu onaylandı")
 
     except Exception as e:
@@ -261,6 +275,16 @@ def reject_appointment_view(request):
 
         appointment.save()
 
+        context = {
+            'student_name': appointment.student.get_full_name(),
+            'academician_name': appointment.academician.get_full_name(),
+            'date': appointment.availability.date.strftime('%Y-%m-%d'),
+            'time': appointment.availability.start_time.strftime('%H:%M'),
+            'subject': appointment.subject,
+            'reason': data.get('reason', 'Belirtilmedi') # Akademisyenin yazdığı red sebebi
+        }
+        send_templated_email('appointment-rejected', appointment.student.email, context)
+
         return api_success(message="Randevu reddedildi")
 
     except Exception as e:
@@ -275,6 +299,8 @@ def reject_appointment_view(request):
 def cancel_appointment_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_role = request.user_payload.get('role')
 
     try:
         data = json.loads(request.body)
@@ -307,6 +333,19 @@ def cancel_appointment_view(request):
             appointment.note_message = cancel_text
 
         appointment.save()
+
+        context = {
+            'student_name': appointment.student.get_full_name(),
+            'academician_name': appointment.academician.get_full_name(),
+            'date': appointment.availability.date.strftime('%Y-%m-%d'),
+            'time': appointment.availability.start_time.strftime('%H:%M'),
+            'cancelled_by': request.user_payload.get('role'), # İptal eden tarafın rolü
+            'reason': data.get('reason', 'Sebep belirtilmedi.')
+        }
+        send_templated_email('appointment-cancelled', appointment.student.email, context)
+
+        if requester_role == 'student':
+            send_templated_email('appointment-cancelled-by-student', appointment.academician.email, context)
 
         return api_success(message="Randevu iptal edildi")
 

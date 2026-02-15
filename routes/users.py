@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.models import AbstractCustomUser, Academician
 from core.utils.decorators import token_required
+from core.utils.paginator import paginate_queryset
 from core.utils.response_helpers import api_error, api_success
 
 
@@ -25,8 +26,10 @@ def list_users_view(request):
     users = AbstractCustomUser.objects.all().order_by('-date_joined')
     total_count = users.count()
 
+    paginated_data = paginate_queryset(users, request)
+
     data = []
-    for user in users:
+    for user in paginated_data['items']:
         data.append({
             "id": user.id,
             "name": user.get_full_name() or user.username,
@@ -39,7 +42,9 @@ def list_users_view(request):
             "lastLogin": user.last_login.strftime('%Y-%m-%dT%H:%M:%SZ') if user.last_login else None
         })
 
-    return api_success(data, total=total_count)
+    paginated_data['items'] = data
+
+    return api_success(paginated_data, total=total_count)
 
 # Create user
 

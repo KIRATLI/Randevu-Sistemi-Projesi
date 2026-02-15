@@ -36,4 +36,7 @@ urlpatterns = [
 
     # Tüm notification işlemleri
     path('api/notifications/', include('routes.notifications_urls')),
+
+    # Tüm report işlemleri
+    path('api/reports', include('routes.reports_urls'))
 ]

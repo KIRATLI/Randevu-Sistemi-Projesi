@@ -4,6 +4,8 @@ from django.core.validators import validate_email
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import logout
+from django_ratelimit.decorators import ratelimit
+
 from core.models.user import AbstractCustomUser
 from core.security import create_access_token, create_refresh_token, verify_token
 from django.views.decorators.csrf import csrf_exempt
@@ -16,6 +18,7 @@ from core.utils.response_helpers import api_error, api_success
 
 
 @csrf_exempt
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
 def login_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)
@@ -92,6 +95,7 @@ def is_email_valid(email):
         return False
 
 @csrf_exempt
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
 def register_view(request):
     if request.method != "POST":
         return api_error("Yalnızca POST kabul edilir", "METHOD_NOT_ALLOWED", status=405)

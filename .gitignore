@@ -1,11 +1,33 @@
 # Ignore database since merging would be a nightmare
 db.sqlite3
+db.sqlite3-journal
 
-# Ignore idea
-.idea
-
-# Ignore Python bytecode and caches
+# Python / Django
 __pycache__/
 *.py[cod]
+*$py.class
+venv/
+env/
+.env
 
 !.gitignore
+
+# Loglar ve Geçici Dosyalar
+*.log
+logs/
+temp/
+
+# Medya ve Statik Dosyalar (Kullanıcıların yüklediği fotoğraflar vb.)
+media/
+static/
+!static/.gitkeep
+
+# IDE / Editör Ayarları (Kişisel ayarların)
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# İşletim Sistemi Dosyaları
+.DS_Store
+Thumbs.db

@@ -1,9 +1,9 @@
 from django.db.models import Count, Q, Max, Min
 from django.utils import timezone
 
-from core.models import Student
-from core.utils.decorators import token_required
-from core.utils.response_helpers import api_error, api_success
+from backend.core.models import Student
+from backend.core.utils.decorators import token_required
+from backend.core.utils.response_helpers import api_error, api_success
 
 
 @token_required

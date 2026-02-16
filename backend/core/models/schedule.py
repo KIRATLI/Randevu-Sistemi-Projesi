@@ -1,6 +1,6 @@
 from django.db import models
 
-from core.utils.text_helpers import generate_schedule_text
+from backend.core.utils.text_helpers import generate_schedule_text
 
 
 # Schedule

@@ -6,15 +6,15 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth import logout
 from django_ratelimit.decorators import ratelimit
 
-from core.models.user import AbstractCustomUser
-from core.security import create_access_token, create_refresh_token, verify_token
+from backend.core.models.user import AbstractCustomUser
+from backend.core.security import create_access_token, create_refresh_token, verify_token
 from django.views.decorators.csrf import csrf_exempt
 import json
 import re
 from django.db import IntegrityError
 
-from core.utils.email_service import send_templated_email
-from core.utils.response_helpers import api_error, api_success
+from backend.core.utils.email_service import send_templated_email
+from backend.core.utils.response_helpers import api_error, api_success
 
 
 @csrf_exempt

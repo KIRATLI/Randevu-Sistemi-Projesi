@@ -2,7 +2,7 @@ from django.db.models import F
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
-from core.models.announcement import AnnouncementView
+from backend.core.models.announcement import AnnouncementView
 
 
 @receiver(post_save, sender=AnnouncementView)

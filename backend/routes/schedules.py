@@ -6,10 +6,10 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from core.models import AbstractCustomUser, Appointment
-from core.models.schedule import Schedule, WorkingSlot
-from core.utils.decorators import token_required
-from core.utils.response_helpers import api_error, api_success
+from backend.core.models import AbstractCustomUser, Appointment
+from backend.core.models.schedule import Schedule, WorkingSlot
+from backend.core.utils.decorators import token_required
+from backend.core.utils.response_helpers import api_error, api_success
 
 
 # Schedule

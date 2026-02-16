@@ -1,6 +1,6 @@
 from django.urls import path
 
-from routes.profiles import profile_view, upload_avatar_view, change_password_view
+from backend.routes.profiles import profile_view, upload_avatar_view, change_password_view
 
 urlpatterns = [
     path('', profile_view, name='profile'),

@@ -4,10 +4,10 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from core.models import AbstractCustomUser, Academician
-from core.utils.decorators import token_required
-from core.utils.paginator import paginate_queryset
-from core.utils.response_helpers import api_error, api_success
+from backend.core.models import AbstractCustomUser, Academician
+from backend.core.utils.decorators import token_required
+from backend.core.utils.paginator import paginate_queryset
+from backend.core.utils.response_helpers import api_error, api_success
 
 
 @csrf_exempt

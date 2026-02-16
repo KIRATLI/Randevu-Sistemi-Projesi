@@ -1,6 +1,6 @@
 from functools import wraps
-from core.security import verify_token
-from core.utils.response_helpers import api_error
+from backend.core.security import verify_token
+from backend.core.utils.response_helpers import api_error
 
 def token_required(view_func):
     @wraps(view_func)

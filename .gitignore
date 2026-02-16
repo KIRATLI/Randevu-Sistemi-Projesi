@@ -1,6 +1,6 @@
 # Ignore database since merging would be a nightmare
-db.sqlite3
-db.sqlite3-journal
+backend/db.sqlite3
+backend/db.sqlite3-journal
 
 # Python / Django
 __pycache__/

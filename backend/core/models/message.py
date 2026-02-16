@@ -27,7 +27,7 @@ class Thread(models.Model):
 
 class Message(models.Model):
     thread = models.ForeignKey(Thread,on_delete=models.CASCADE,related_name='messages')
-    sender = models.ForeignKey('core.AbstractCustomUser',on_delete=models.CASCADE,related_name='sent_messages')
+    sender = models.ForeignKey('core.AbstractCustomUser', on_delete=models.CASCADE, related_name='sent_messages')
     # receiver -> access it from the thread.
     content = models.TextField()
     date = models.DateTimeField(auto_now_add=True)

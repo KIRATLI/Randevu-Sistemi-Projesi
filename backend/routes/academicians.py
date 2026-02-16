@@ -1,8 +1,8 @@
 from django.shortcuts import get_object_or_404
 
-from backend.core.models import Availability, Academician
-from backend.core.utils.decorators import token_required
-from backend.core.utils.response_helpers import api_error, api_success
+from core.models import Availability, Academician
+from core.utils.decorators import token_required
+from core.utils.response_helpers import api_error, api_success
 
 
 # Academician List

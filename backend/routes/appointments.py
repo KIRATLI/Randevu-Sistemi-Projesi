@@ -3,11 +3,11 @@ import json
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.core.models import Appointment, Availability
-from backend.core.utils.decorators import token_required, role_required
-from backend.core.utils.email_service import send_templated_email
-from backend.core.utils.paginator import paginate_queryset
-from backend.core.utils.response_helpers import api_error, api_success
+from core.models import Appointment, Availability
+from core.utils.decorators import token_required, role_required
+from core.utils.email_service import send_templated_email
+from core.utils.paginator import paginate_queryset
+from core.utils.response_helpers import api_error, api_success
 
 
 # Appointments view (separating GET and POST)

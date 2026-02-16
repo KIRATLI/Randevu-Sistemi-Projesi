@@ -1,6 +1,6 @@
 from django.db import models
 
-from backend.core.models import AbstractCustomUser
+from core.models import AbstractCustomUser
 
 
 class Profile(models.Model):

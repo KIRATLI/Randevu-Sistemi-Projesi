@@ -3,9 +3,9 @@ import json
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.core.models.notification import Notification, NotificationSettings
-from backend.core.utils.decorators import token_required, role_required
-from backend.core.utils.response_helpers import api_error, api_success
+from core.models.notification import Notification, NotificationSettings
+from core.utils.decorators import token_required, role_required
+from core.utils.response_helpers import api_error, api_success
 
 
 @token_required

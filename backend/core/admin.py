@@ -1,6 +1,6 @@
 from django.contrib import admin
-from backend.core.models import Availability, Appointment
-from backend.core.models.user import Student, Academician
+from core.models import Availability, Appointment
+from core.models.user import Student, Academician
 
 # Register the proxy models separately for better organization
 @admin.register(Student)

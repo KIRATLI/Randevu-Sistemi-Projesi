@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backend.routes.messages import messages_view, get_thread_messages_view, mark_message_read_view, delete_message_view, \
+from routes.messages import messages_view, get_thread_messages_view, mark_message_read_view, delete_message_view, \
     get_unread_count_view, bulk_send_message_view
 
 urlpatterns = [

@@ -1,8 +1,8 @@
 from django.core.mail import send_mail
 from django.conf import settings
 
-from backend.core.models.email_template import EmailTemplate
-from backend.core.utils.email_defaults import DEFAULT_EMAILS
+from core.models.email_template import EmailTemplate
+from core.utils.email_defaults import DEFAULT_EMAILS
 
 
 def send_templated_email(template_slug, target_email, context):

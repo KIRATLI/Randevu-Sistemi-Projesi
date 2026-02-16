@@ -6,11 +6,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.core.models import AbstractCustomUser
-from backend.core.models.announcement import Announcement
-from backend.core.utils.decorators import token_required, role_required
-from backend.core.utils.paginator import paginate_queryset
-from backend.core.utils.response_helpers import api_error, api_success
+from core.models import AbstractCustomUser
+from core.models.announcement import Announcement
+from core.utils.decorators import token_required, role_required
+from core.utils.paginator import paginate_queryset
+from core.utils.response_helpers import api_error, api_success
 
 
 @token_required

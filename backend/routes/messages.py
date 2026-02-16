@@ -4,12 +4,12 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.core.models import AbstractCustomUser
-from backend.core.models.message import Message, Thread
-from backend.core.models.notification import Notification
-from backend.core.utils.decorators import token_required, role_required
-from backend.core.utils.paginator import paginate_queryset
-from backend.core.utils.response_helpers import api_error, api_success
+from core.models import AbstractCustomUser
+from core.models.message import Message, Thread
+from core.models.notification import Notification
+from core.utils.decorators import token_required, role_required
+from core.utils.paginator import paginate_queryset
+from core.utils.response_helpers import api_error, api_success
 
 
 # Messages

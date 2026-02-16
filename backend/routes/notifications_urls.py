@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backend.routes.notifications import get_notifications_view, get_unread_notifications_count_view, \
+from routes.notifications import get_notifications_view, get_unread_notifications_count_view, \
     mark_notification_read_view, mark_all_notifications_read_view, delete_notification_view, notification_settings_view
 
 urlpatterns = [

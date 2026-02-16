@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Q
 from django.db.models.functions import TruncMonth
 
-from backend.core.models import Appointment
-from backend.core.models.report import SystemReport
-from backend.core.utils.decorators import token_required
-from backend.core.utils.response_helpers import api_error, api_success
+from core.models import Appointment
+from core.models.report import SystemReport
+from core.utils.decorators import token_required
+from core.utils.response_helpers import api_error, api_success
 
 
 @token_required

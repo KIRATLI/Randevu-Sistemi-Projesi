@@ -1,8 +1,10 @@
+import os
+
 import jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext # Şifre hashlemek için ekledik
 
-SECRET_KEY = "senin_cok_gizli_anahtarin" 
+SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

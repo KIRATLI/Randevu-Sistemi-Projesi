@@ -9,8 +9,14 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+
+import sentry_sdk
+from dotenv import load_dotenv
+from sentry_sdk.integrations.django import DjangoIntegration
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +26,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-f9yzaoenpx*68biuc%i7)tij=vf5b_a-_xiae@gi1j_qub^pr2'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
+
+sentry_sdk.init(
+    # Buradaki DSN adresini sentry.io'dan ücretsiz hesap açıp proje oluşturunca alacaksın
+    dsn=os.getenv('SENTRY_DSN'),
+    integrations=[DjangoIntegration()],
+
+    # Hataları %100 oranında yakala
+    traces_sample_rate=1.0,
+
+    # Hassas verileri (şifre, kredi kartı vb.) Sentry'ye göndermemek için:
+    send_default_pii=False
+)
 
 
 # Application definition
@@ -129,22 +147,22 @@ AUTH_USER_MODEL = 'core.AbstractCustomUser'
 
 # Email backend
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your-email@gmail.com'
-EMAIL_HOST_PASSWORD = 'app-password'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = os.getenv('EMAIL_PORT')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 # Eğer tüm dünyadan isteklere açmak istersen (senin listedeki * seçeneği):
 CORS_ALLOW_ALL_ORIGINS = True
 
-# VEYA sadece spesifik domainler için (Daha güvenli):
+# VEYA sadece spesifik domainler için
 CORS_ALLOWED_ORIGINS = [
     "https://frontend-projen.vercel.app",
     "http://localhost:3000",
 ]
 
-# İzin verilen metodlar (Senin kuralın)
+# İzin verilen metodlar
 CORS_ALLOW_METHODS = [
     "DELETE",
     "GET",
@@ -154,7 +172,7 @@ CORS_ALLOW_METHODS = [
     "PUT",
 ]
 
-# İzin verilen header'lar (Senin kuralın)
+# İzin verilen header'lar
 CORS_ALLOW_HEADERS = [
     "accept",
     "authorization",
@@ -163,3 +181,9 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
 ]
+
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+X_FRAME_OPTIONS = 'DENY'

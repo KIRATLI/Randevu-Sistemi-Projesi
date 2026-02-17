@@ -154,13 +154,11 @@ EMAIL_PORT = os.getenv('EMAIL_PORT')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-# Eğer tüm dünyadan isteklere açmak istersen (senin listedeki * seçeneği):
-CORS_ALLOW_ALL_ORIGINS = True
-
 # VEYA sadece spesifik domainler için
 CORS_ALLOWED_ORIGINS = [
-    "https://frontend-projen.vercel.app",
-    "http://localhost:3000",
+    "http://localhost:5173",  # Vite'ın (yeni frontend) adresi
+    "http://127.0.0.1:5173",  # Vite için alternatif adres
+    "http://localhost:3000",  # Eski React projeleri için (tedbir amaçlı kalsın)
 ]
 
 # İzin verilen metodlar

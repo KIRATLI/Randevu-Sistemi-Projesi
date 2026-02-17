@@ -31,3 +31,6 @@ static/
 # İşletim Sistemi Dosyaları
 .DS_Store
 Thumbs.db
+
+#
+run.bat

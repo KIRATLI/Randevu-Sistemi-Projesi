@@ -2,7 +2,7 @@ import os
 
 import jwt
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext # Şifre hashlemek için ekledik
+from passlib.context import CryptContext
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"

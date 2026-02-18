@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from core.models import AbstractCustomUser, Academician
+from core.models import AbstractCustomUser, Academician, Student
 from core.utils.decorators import token_required
 from core.utils.paginator import paginate_queryset
 from core.utils.response_helpers import api_error, api_success
@@ -53,22 +53,38 @@ def create_user_view(request):
         data = json.loads(request.body)
 
         # İsim ayırma mantığı
-        full_name = data.get('name', '')
+        full_name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role')
+        student_no = data.get('studentNo')
+        registration_no = data.get('registrationNo')
+        department = data.get('department')
+        faculty = data.get('faculty')
+
+        if not all[full_name, email, password, role]:
+            return api_error("name, email, password ve role gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        if role == 'student' and not student_no:
+            return api_error('studentNo gereklidir', "REQUIRED_FIELD_MISSING", status=400)
+        if role == 'academician' and not registration_no:
+            return api_error('registrationNo gereklidir', "REQUIRED_FIELD_MISSING", status=400)
+
         parts = full_name.split(' ', 1)
         f_name = parts[0]
         l_name = parts[1] if len(parts) > 1 else ""
 
         # Kullanıcı oluşturma (Hassas bilgi: create_user şifreyi hash'ler)
         user = AbstractCustomUser.objects.create_user(
-            username=data.get('email'), # E-postayı kullanıcı adı olarak kullanıyoruz
-            email=data.get('email'),
-            password=data.get('password'),
+            username=email, # E-postayı kullanıcı adı olarak kullanıyoruz
+            email=email,
+            password=password,
             first_name=f_name,
             last_name=l_name,
-            role=data.get('role', 'student'),
-            department=data.get('department', ''),
-            faculty=data.get('faculty', ''),
-            number=data.get('studentNo') or data.get('registrationNo')
+            role=role,
+            department=department,
+            faculty=faculty,
+            number=student_no if role == 'student' else (registration_no if role == 'academician' else "admin")
         )
 
         # Eğer rol akademisyen ise Academician tablosuna da ekleyelim (Multi-table Inheritance)
@@ -205,7 +221,7 @@ def global_search_view(request):
     ).distinct()
 
     # 2. Öğrencileri ara (İsim, Soyisim, Öğrenci No)
-    student_results = AbstractCustomUser.objects.filter(role='student').filter(
+    student_results = Student.objects.filter(
         Q(first_name__icontains=query) |
         Q(last_name__icontains=query) |
         Q(number__icontains=query)
@@ -220,8 +236,11 @@ def global_search_view(request):
             "id": aca.id,
             "type": "academician",
             "name": aca.get_full_name() or aca.username,
-            "title": aca.title,
+            "number": aca.number,
             "department": aca.department,
+
+            "title": aca.title,
+
             "avatar": aca.profile.avatar.url if hasattr(aca, 'profile') and aca.profile.avatar else None,
             "info": f"{aca.title} - {aca.department}"
         })
@@ -234,7 +253,20 @@ def global_search_view(request):
             "name": stu.get_full_name() or stu.username,
             "number": stu.number,
             "department": stu.department,
-            "info": f"Öğrenci: {stu.number}"
+            "gpa": stu.gpa,
+
+            "avatar": stu.profile.avatar.url if hasattr(stu, 'profile') and stu.profile.avatar else None,
+            "info": f"{stu.get_full_name} - {stu.department}"
+        })
+
+    #Adminler
+    for admin in AbstractCustomUser.objects.filter(role='admin'):
+        results.append({
+            "id": admin.id,
+            "type": "admin",
+            "name": admin.get_full_name() or admin.username,
+            "email": admin.email,
+            "role": admin.role
         })
 
     return api_success(results)

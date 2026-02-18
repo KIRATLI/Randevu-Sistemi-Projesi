@@ -27,6 +27,7 @@ def login_view(request):
         data = json.loads(request.body)
         email = data.get('email')
         password = data.get('password')
+        role = data.get('role')
 
         if not email or not password:
             return api_error("email ve password gereklidir", "REQUIRED_FIELD_MISSING", status=400)
@@ -109,6 +110,10 @@ def register_view(request):
         password = data.get('password')
         confirm_password = data.get('confirmPassword')
         role = data.get('role')
+        student_no = data.get('studentNo')
+        registration_no = data.get('registrationNo')
+        department = data.get('department')
+        faculty = data.get('faculty')
 
         if not all([name, email, password, confirm_password, role]):
             return api_error("name, email, password, confirmPassword ve role gereklidir", "REQUIRED_FIELD_MISSING", status=400)
@@ -124,13 +129,9 @@ def register_view(request):
         if not is_password_strong(password):
             return api_error("Şifre en az 8 karakter olmalı; büyük harf, küçük harf, rakam ve özel karakter içermelidir.", "PASSWORD_TOO_WEAK", status=400)
 
-        # 3. Role Bazlı Zorunlu Alan Kontrolü
-        student_no = data.get('studentNo')
-        registration_no = data.get('registrationNo')
-
+        #3. Rol Bazlı Zorunlu Fieldlar
         if role == "student" and not student_no:
             return api_error("studentNo gereklidir", "REQUIRED_FIELD_MISSING", status=400)
-
         if role == "academician" and not registration_no:
             return api_error("registrationNo gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
@@ -146,8 +147,8 @@ def register_view(request):
             first_name=name,
             role=role,
             number=number,
-            department=data.get('department'),
-            faculty=data.get('faculty')
+            department=department,
+            faculty=faculty
         )
 
         context = {

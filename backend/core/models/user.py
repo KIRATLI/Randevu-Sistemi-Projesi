@@ -41,10 +41,12 @@ class AbstractCustomUser(AbstractUser):
 
     class Meta:
         abstract = False
+        verbose_name = "Üye"
+        verbose_name_plural = "Üyeler"
 
 
     def __str__(self):
-        return f"{self.get_full_name} ({self.role})"
+        return f"{self.get_full_name()} ({self.role})"
 
     def is_student(self):
         return self.role == 'student'

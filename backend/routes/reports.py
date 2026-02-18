@@ -77,7 +77,10 @@ def get_system_stats_view(request):
 
     # 5. Veriyi Topla
     report_data = {
-        "summary": stats,
+        "totalAppointments": stats['total'],
+        "completedAppointments": stats['completed'],
+        "cancelledAppointments": stats['cancelled'],
+        "pendingAppointments": stats['pending'],
         "monthlyTrend": monthly_trend,
         "departmentStats": department_stats,
         "topAcademicians": top_academicians,

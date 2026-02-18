@@ -123,7 +123,6 @@ def appointment_detail_view(request, appointment_id):
         "time": app.availability.start_time.strftime('%H:%M'),
         "duration": app.availability.get_duration_minutes(),
         "status": app.status,
-        "statusLabel": app.status,
         "subject": app.subject,
         "notes": app.note_message,
         "createdAt": app.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -147,6 +146,9 @@ def create_appointment_view(request):
         req_time = data.get('time')
         subject = data.get('subject')
         notes = data.get('notes', "")
+
+        if not all[aca_id, req_date, req_time, subject]:
+            return api_error("academicianId, date, time, subject gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
 
         # 2. Uygun Slotu Bul
         slot = Availability.objects.filter(

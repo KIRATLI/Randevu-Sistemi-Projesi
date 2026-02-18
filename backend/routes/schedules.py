@@ -88,6 +88,9 @@ def update_schedule_view(request):
         data = json.loads(request.body)
         academician_id = data.get('academicianId')
 
+        if not academician_id:
+            return api_error("academicianId gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
         if str(academician_id) != str(requester_id) and requester_role != 'admin':
             return api_error("Programı güncellemek için yetkiniz yok", "SCHEDULE_PERMISSION_DENIED", status=403)
 
@@ -135,7 +138,7 @@ def get_available_slots_view(request):
     academician_id = request.GET.get('academicianId')
 
     if not all([date_str, academician_id]):
-        return api_error("date_str ve academician_id gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
+        return api_error("date ve academician_id gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
 
     # 1. Genel Ayarları Getir
     schedule = Schedule.objects.filter(academician_id=academician_id).first()

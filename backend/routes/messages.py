@@ -93,13 +93,13 @@ def send_message_view(request):
         data = json.loads(request.body)
 
         # Request'ten verileri al (Senin pattern'ine göre senderId'yi de bekliyoruz)
-        sender_id = data.get('userId')
+        sender_id = data.get('userId') or requester_id
         receiver_id = data.get('receiverId')
-        subject = data.get('subject', 'Konu Yok')
+        subject = data.get('subject', 'Yeni Mesaj')
         content = data.get('content')
         thread_id = data.get('threadId')
 
-        if str(sender_id) != requester_id and requester_role != 'admin':
+        if str(sender_id) != str(requester_id) and requester_role != 'admin':
             return api_error("Bu mesajı göndermek için yetkiniz yok", "MESSAGE_PERMISSION_DENIED", status=403)
 
         if not all([receiver_id, content]):
@@ -277,7 +277,7 @@ def delete_message_view(request):
         # diğer mesajlardaki reply_to alanları models.SET_NULL sayesinde boşa çıkar.
         message.delete()
 
-        return api_success(message="Mesaj başarıyla silindi")
+        return api_success(message="Mesaj silindi")
 
     except Exception as e:
         return api_error(f"Mesaj silinirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

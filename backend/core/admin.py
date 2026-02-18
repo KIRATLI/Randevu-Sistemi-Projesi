@@ -1,19 +1,25 @@
 from django.contrib import admin
-from core.models import Availability, Appointment
+from core.models import Availability, Appointment, AbstractCustomUser
 from core.models.user import Student, Academician
 
 # Register the proxy models separately for better organization
+@admin.register(AbstractCustomUser)
+class AbstractCustomUserAdmin(admin.ModelAdmin):
+    list_display = ('username', 'first_name', 'last_name', 'email', 'role', 'number', 'department', 'faculty')
+    list_filter = ('role', 'department')
+    search_fields = ('username', 'first_name', 'last_name', 'number')
+
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('username', 'first_name', 'last_name', 'number', 'department')
+    list_display = ('username', 'first_name', 'last_name', 'email', 'role', 'number', 'department', 'faculty', 'gpa')
     list_filter = ('department',) # must contain ',' to be a tuple
     search_fields = ('username', 'first_name', 'last_name', 'number')
 
 @admin.register(Academician)
 class AcademicianAdmin(admin.ModelAdmin):
-    list_display = ('username', 'first_name', 'last_name', 'title', 'department')
+    list_display = ('username', 'first_name', 'last_name', 'title', 'department', 'faculty', 'title', 'office')
     list_filter = ('title', 'department')
-    search_fields = ('username', 'first_name', 'last_name')
+    search_fields = ('username', 'first_name', 'last_name', 'number')
 
 @admin.register(Availability)
 class AvailabilityAdmin(admin.ModelAdmin):

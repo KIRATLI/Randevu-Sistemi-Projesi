@@ -12,10 +12,20 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const response = await api.login({ ...formData, role: activeTab })
-    if (response.success) {
-      // Redirect based on selected role
-      if (activeTab === 'student') navigate('/student/dashboard')
-      else if (activeTab === 'academician') navigate('/academician/dashboard')
+
+    if (response && response.success) {
+      // Token'ı localStorage'a kaydet
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
+
+      // Auth context'i güncelle
+      login(response.user)
+
+      // Redirect
+      if (activeTab === 'student') navigate('/student/dashboard');
+      else if (activeTab === 'academician') navigate('/academician/dashboard');
+    }else {
+      console.error("Giriş başarısız veya success değeri gelmedi!", response?.error);
     }
   }
 

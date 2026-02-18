@@ -62,7 +62,7 @@ def create_user_view(request):
         department = data.get('department')
         faculty = data.get('faculty')
 
-        if not all[full_name, email, password, role]:
+        if not all([full_name, email, password, role]):
             return api_error("name, email, password ve role gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
         if role == 'student' and not student_no:

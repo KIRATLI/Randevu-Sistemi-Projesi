@@ -147,7 +147,7 @@ def create_appointment_view(request):
         subject = data.get('subject')
         notes = data.get('notes', "")
 
-        if not all[aca_id, req_date, req_time, subject]:
+        if not all([aca_id, req_date, req_time, subject]):
             return api_error("academicianId, date, time, subject gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
 
         # 2. Uygun Slotu Bul

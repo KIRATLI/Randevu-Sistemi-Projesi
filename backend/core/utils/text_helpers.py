@@ -55,6 +55,10 @@ def generate_schedule_text(schedule):
         day_text = ", ".join(formatted_days)
         final_sentences.append(f"{day_text} {start}-{end}")
 
-    final_sentences.sort(key=lambda x: day_order[x.split(' ')[0].lower() if '-' not in x else x.split('-')[0].lower()])
+    tr_to_en = {v.lower(): k for k, v in day_names_tr.items()}
+
+    final_sentences.sort(key=lambda x: day_order[
+        tr_to_en.get(x.split(' ')[0].lower() if '-' not in x else x.split('-')[0].lower(), 'monday')
+    ])
 
     return " | ".join(final_sentences) if final_sentences else "Çalışma saati tanımlanmamış."

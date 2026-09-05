@@ -32,6 +32,8 @@ export default function Students() {
       if (response.success) {
         setStudents(response.data)
       }
+      console.log('students:', students)
+      console.log('gpa values:', students.map(s => s.gpa))
     } catch (error) {
       console.error('Öğrenciler yüklenemedi:', error)
     } finally {
@@ -96,7 +98,9 @@ export default function Students() {
   // Stats
   const stats = {
     total: students.length,
-    avgGPA: (students.reduce((sum, s) => sum + s.gpa, 0) / students.length).toFixed(2),
+    avgGPA: students.length > 0
+        ? (students.reduce((sum, s) => sum + s.gpa, 0) / students.length).toFixed(2)
+        : '0.00',
     totalAppointments: students.reduce((sum, s) => sum + s.totalAppointments, 0),
     withUpcoming: students.filter(s => s.nextAppointment).length
   }

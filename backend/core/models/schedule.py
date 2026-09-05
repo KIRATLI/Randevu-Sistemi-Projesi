@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from django.db import models
 
 from core.utils.text_helpers import generate_schedule_text
@@ -15,7 +17,7 @@ class Schedule(models.Model):
     def __str__(self):
         return f"{self.academician.username} - Genel Çalışma Planı"
 
-    @property
+    @cached_property
     def summary_text(self):
         return generate_schedule_text(self)
 

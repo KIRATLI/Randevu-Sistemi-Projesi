@@ -17,9 +17,7 @@ export default function StudentDashboard() {
     try {
       const response = await api.getAppointments()
       if (response.success) {
-        // Filter by student (mock: studentId = 1)
-        const studentAppointments = response.data.filter(apt => apt.studentId === 1)
-        setAppointments(studentAppointments)
+        setAppointments(response.data.items || response.data)
       }
     } catch (error) {
       console.error('Error loading appointments:', error)
@@ -35,12 +33,21 @@ export default function StudentDashboard() {
   }
 
   const upcomingAppointments = appointments
-    .filter(apt => {
-      const aptDate = new Date(`${apt.date} ${apt.time}`)
-      return aptDate > new Date() && (apt.status === 'confirmed' || apt.status === 'pending')
-    })
-    .sort((a, b) => new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`))
-    .slice(0, 3)
+      .filter(apt => {
+        const aptDate = new Date(`${apt.date}T${apt.time}:00`)
+        return aptDate > new Date() && (apt.status === 'confirmed' || apt.status === 'pending')
+      })
+      .sort((a, b) => new Date(`${a.date}T${a.time}:00`) - new Date(`${b.date}T${b.time}:00`))
+      .slice(0, 3)
+  console.log('upcomingAppointments:', upcomingAppointments)
+
+  useEffect(() => {
+    console.log('appointments detay:', appointments.map(a => ({
+      date: a.date, time: a.time, status: a.status,
+      aptDate: new Date(`${a.date}T${a.time}:00`).toString(),
+      isFuture: new Date(`${a.date}T${a.time}:00`) > new Date()
+    })))
+  }, [appointments])
 
   return (
     <DashboardLayout userRole="student">

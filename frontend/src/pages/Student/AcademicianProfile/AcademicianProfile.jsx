@@ -32,20 +32,9 @@ export default function AcademicianProfile() {
   const loadAcademicianData = async () => {
     try {
       const response = await api.getAcademician(id)
-      // Mock data
-      setAcademician({
-        id: parseInt(id),
-        name: id === '1' ? 'Prof. Dr. Ayşe Demir' : 'Doç. Dr. Mehmet Kaya',
-        title: id === '1' ? 'Profesör' : 'Doçent',
-        department: id === '1' ? 'Bilgisayar Mühendisliği' : 'Yazılım Mühendisliği',
-        faculty: 'Mühendislik Fakültesi',
-        office: id === '1' ? 'A-204' : 'B-101',
-        email: id === '1' ? 'ayse.demir@ankara.edu.tr' : 'mehmet.kaya@ankara.edu.tr',
-        phone: '+90 312 XXX XX XX',
-        bio: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proje danışmanlığı, tez yönlendirme ve ders içerik konularında öğrencilerle görüşmeler yapmaktadır.',
-        specializations: ['Yapay Zeka', 'Makine Öğrenmesi', 'Veri Bilimi'],
-        officeHours: 'Pazartesi-Cuma 09:00-17:00'
-      })
+      if(response.success) {
+        setAcademician(response.data)
+      }
     } catch (error) {
       console.error('Error loading academician:', error)
     } finally {
@@ -69,8 +58,15 @@ export default function AcademicianProfile() {
     setLoadingSlots(true)
     setSelectedSlot(null)
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0]
+      //toISOString zaman kayması yaşatıyor. Istanbul +3:00
+      const dateStr = [
+          selectedDate.getFullYear(),
+          String(selectedDate.getMonth() + 1).padStart(2, '0'),
+          String(selectedDate.getDate()).padStart(2, '0')
+      ].join('-')
+      console.log('Seçilen date:', dateStr)
       const response = await api.getAvailableSlots(dateStr, id)
+      console.log('Gönderilen dateStr:', dateStr)
       if (response.success) {
         setAvailableSlots(response.data)
       }
@@ -88,19 +84,19 @@ export default function AcademicianProfile() {
       return
     }
 
+    const currentUser = JSON.parse(localStorage.getItem('user'))
+
     setSubmitting(true)
     try {
       const appointmentData = {
         academicianId: parseInt(id),
-        academicianName: academician.name,
-        studentId: 1, // Mock student ID
-        studentName: 'Ahmet Yılmaz',
-        studentNo: '12345678',
-        date: selectedDate.toISOString().split('T')[0],
+        date: [
+            selectedDate.getFullYear(),
+            String(selectedDate.getMonth() + 1).padStart(2, '0'),
+            String(selectedDate.getDate()).padStart(2, '0')
+        ].join('-'),
         time: selectedSlot.time,
-        duration: 30,
         subject: subject,
-        status: 'pending'
       }
 
       const response = await api.createAppointment(appointmentData)
@@ -170,7 +166,7 @@ export default function AcademicianProfile() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>{academician.officeHours}</span>
+                  <span>{academician.scheduleText}</span>
                 </div>
               </div>
             </div>

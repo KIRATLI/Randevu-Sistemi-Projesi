@@ -29,7 +29,7 @@ urlpatterns = [
     path('api/messages/', include('routes.messages_urls')),
 
     # Tüm schedule işlemleri
-    path('api/schedules/', include('routes.schedules_urls')),
+    path('api/schedule/', include('routes.schedule_urls')),
 
     # Tüm announcement işlemleri
     path('api/announcements/', include('routes.announcements_urls')),

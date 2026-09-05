@@ -19,9 +19,7 @@ export default function StudentAppointments() {
     try {
       const response = await api.getAppointments()
       if (response.success) {
-        // Filter by student (mock: studentId = 1)
-        const studentAppointments = response.data.filter(apt => apt.studentId === 1)
-        setAppointments(studentAppointments)
+        setAppointments(response.data.items || response.data)
       }
     } catch (error) {
       console.error('Error loading appointments:', error)

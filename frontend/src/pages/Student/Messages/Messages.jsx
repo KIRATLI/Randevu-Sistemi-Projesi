@@ -6,8 +6,9 @@ import ComposeMessage from '../../../components/ComposeMessage/ComposeMessage'
 import { api } from '../../../utils/api'
 
 export default function StudentMessages() {
-  const currentUserId = 1 // Mock student ID
-  const currentUserRole = 'student'
+  const currentUser = JSON.parse(localStorage.getItem('user'))
+  const currentUserId = currentUser?.id
+  const currentUserRole = currentUser?.role
 
   const [messages, setMessages] = useState([])
   const [selectedThread, setSelectedThread] = useState(null)
@@ -110,7 +111,6 @@ export default function StudentMessages() {
       receiverRole: 'academician',
       subject: formData.subject,
       content: formData.content,
-      threadId: Date.now() // New thread
     }
 
     try {

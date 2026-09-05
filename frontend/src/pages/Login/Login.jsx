@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../../utils/api'
 import { useTheme } from '../../contexts/ThemeContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function Login() {
   const navigate = useNavigate()
   const { darkMode, toggleDarkMode } = useTheme()
+  const { login } = useAuth()
   const [activeTab, setActiveTab] = useState('student') // 'student' or 'academician'
   const [formData, setFormData] = useState({ email: '', password: '' })
 
@@ -22,8 +24,8 @@ export default function Login() {
       login(response.user)
 
       // Redirect
-      if (activeTab === 'student') navigate('/student/dashboard');
-      else if (activeTab === 'academician') navigate('/academician/dashboard');
+      if (activeTab === 'student') navigate('/student/dashboard')
+      else if (activeTab === 'academician') navigate('/academician/dashboard')
     }else {
       console.error("Giriş başarısız veya success değeri gelmedi!", response?.error);
     }

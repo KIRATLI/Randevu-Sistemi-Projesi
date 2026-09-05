@@ -1,3 +1,5 @@
+import traceback
+
 from django.shortcuts import get_object_or_404
 
 from core.models import Availability, Academician
@@ -38,30 +40,36 @@ def list_academicians_view(request):
 def academician_detail_view(request, aca_id): # URL'den gelen 'id' burada parametre olarak alınır
     if request.method != "GET":
         return api_error("Yalnızca GET kabul edilir", "METHOD_NOT_ALLOWED", status=405)
+    try:
+        # 1. Akademisyeni bul, yoksa 404 döndür
+        aca = get_object_or_404(Academician, id=aca_id)
 
-    # 1. Akademisyeni bul, yoksa 404 döndür
-    aca = get_object_or_404(Academician, id=aca_id)
+        # 2. ManyToMany olan uzmanlık alanlarını bir liste olarak alalım
+        # values_list('name', flat=True) bize sadece isimlerden oluşan bir liste ['AI', 'ML'] döner
+        specs = list(aca.specializations.all().values_list('name', flat=True))
 
-    # 2. ManyToMany olan uzmanlık alanlarını bir liste olarak alalım
-    # values_list('name', flat=True) bize sadece isimlerden oluşan bir liste ['AI', 'ML'] döner
-    specs = list(aca.specializations.all().values_list('name', flat=True))
+        # 3. Müsaitlik kontrolü (Manager metodunla)
+        has_availability = Availability.objects.for_teacher(aca).available_upcoming().exists()
 
-    # 3. Müsaitlik kontrolü (Manager metodunla)
-    has_availability = Availability.objects.for_teacher(aca).available_upcoming().exists()
+        # 4. JSON Formatını oluştur
+        data = {
+            "id": aca.id,
+            "name": aca.get_full_name() if aca.get_full_name() else aca.username,
+            "email": aca.email,
+            "title": aca.title,
+            "department": aca.department,
+            "faculty": aca.faculty,
+            "office": aca.office,
+            "phone": aca.profile.phone,
+            "bio": aca.profile.bio,
+            "specializations": specs,
+            "available": has_availability,
+            "scheduleText": aca.schedule.summary_text or None
+        }
 
-    # 4. JSON Formatını oluştur
-    data = {
-        "id": aca.id,
-        "name": aca.get_full_name() if aca.get_full_name() else aca.username,
-        "email": aca.email,
-        "title": aca.title,
-        "department": aca.department,
-        "faculty": aca.faculty,
-        "office": aca.office,
-        "phone": aca.profile.phone,
-        "bio": aca.profile.bio,
-        "specializations": specs,
-        "available": has_availability
-    }
+        return api_success(data)
 
-    return api_success(data)
+    except Exception as e:
+        traceback.print_exc()
+        return api_error(f"Akademisyen bilgisi getirilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
+

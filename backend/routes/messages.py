@@ -143,6 +143,8 @@ def send_message_view(request):
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return api_error(f"Mesaj gönderirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
@@ -174,14 +176,12 @@ def get_thread_messages_view(request):
         'sender', 'reply_to'
     ).order_by('date') # 'date' -> En eski mesaj en üstte
 
-    paginated_data = paginate_queryset(messages, request)
-
     data = []
     # Thread'deki katılımcıları önceden alalım (alıcıyı belirlemek için)
     # 2 kişilik mesajlaşma varsayımıyla:
     participants = list(thread.participants.all())
 
-    for msg in paginated_data['items']:
+    for msg in messages:
         # Alıcıyı bul: Katılımcılardan gönderici olmayanı seç
         receiver = next((p for p in participants if p.id != msg.sender_id), msg.sender)
 
@@ -201,9 +201,7 @@ def get_thread_messages_view(request):
             "replyTo": msg.reply_to_id
         })
 
-    paginated_data['items'] = data
-
-    return api_success(paginated_data)
+    return api_success(data)
 
 
 # Mark read the message
@@ -231,10 +229,11 @@ def mark_message_read_view(request):
         if not is_participant:
             return api_error("Bu mesaj üzerinde işlem yapma yetkiniz yok.", "MESSAGE_PERMISSION_DENIED", status=403)
 
-        # 2. Eğer zaten okunduysa boşuna işlem yapma, değilse güncelle
-        if not message.is_read:
-            message.is_read = True
-            message.save(update_fields=['is_read']) # Sadece bu alanı güncellemek daha performanslıdır
+        # 2. Thread'deki tüm okunmamış mesajları okundu yap
+        Message.objects.filter(
+            thread=message.thread,
+            is_read=False
+        ).exclude(sender_id=requester_id).update(is_read=True)
 
         return api_success(message="Mesaj okundu olarak işaretlendi")
 

@@ -27,8 +27,7 @@ export default function AcademicianAppointments() {
     try {
       const response = await api.getAppointments()
       if (response.success) {
-        const academicianAppointments = response.data.filter(apt => apt.academicianId === 1)
-        setAppointments(academicianAppointments)
+        setAppointments(response.data)
       }
     } catch (error) {
       console.error('Error loading appointments:', error)

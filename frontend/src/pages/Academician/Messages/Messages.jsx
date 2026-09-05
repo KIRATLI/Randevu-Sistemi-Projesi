@@ -6,8 +6,9 @@ import ComposeMessage from '../../../components/ComposeMessage/ComposeMessage'
 import { api } from '../../../utils/api'
 
 export default function AcademicianMessages() {
-  const currentUserId = 1 // Mock academician ID
-  const currentUserRole = 'academician'
+  const currentUser = JSON.parse(localStorage.getItem('user'))
+  const currentUserId = currentUser?.id
+  const currentUserRole = currentUser?.role
 
   const [messages, setMessages] = useState([])
   const [selectedThread, setSelectedThread] = useState(null)
@@ -25,6 +26,8 @@ export default function AcademicianMessages() {
   const loadMessages = async () => {
     try {
       const response = await api.getMessages(currentUserId)
+      // Debug
+      console.log('okunmamış:', response.data.filter(msg => !msg.read && msg.receiverId === parseInt(currentUserId)))
       if (response.success) {
         setMessages(response.data)
       }
@@ -66,17 +69,9 @@ export default function AcademicianMessages() {
     const receiverId = firstMessage.senderId === currentUserId 
       ? firstMessage.receiverId 
       : firstMessage.senderId
-    const receiverName = firstMessage.senderId === currentUserId 
-      ? firstMessage.receiverName 
-      : firstMessage.senderName
 
     const messageData = {
-      senderId: currentUserId,
-      senderName: 'Prof. Dr. Ayşe Demir',
-      senderRole: currentUserRole,
-      receiverId,
-      receiverName,
-      receiverRole: 'student',
+      receiverId: receiverId,
       subject: `Re: ${firstMessage.subject}`,
       content: replyText,
       threadId: selectedThread,
@@ -102,15 +97,9 @@ export default function AcademicianMessages() {
     const receiver = students.find(s => s.id === formData.receiverId)
     
     const messageData = {
-      senderId: currentUserId,
-      senderName: 'Prof. Dr. Ayşe Demir',
-      senderRole: currentUserRole,
       receiverId: formData.receiverId,
-      receiverName: receiver.name,
-      receiverRole: 'student',
       subject: formData.subject,
       content: formData.content,
-      threadId: Date.now() // New thread
     }
 
     try {
@@ -136,7 +125,7 @@ export default function AcademicianMessages() {
     )
   })
 
-  const unreadCount = messages.filter(msg => !msg.read && msg.receiverId === currentUserId).length
+  const unreadCount = messages.filter(msg => !msg.read && msg.receiverId === parseInt(currentUserId)).length
 
   if (loading) {
     return (

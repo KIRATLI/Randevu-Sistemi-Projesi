@@ -5,6 +5,8 @@ import { api } from '../utils/api'
 import NotificationDropdown from '../components/NotificationDropdown/NotificationDropdown'
 
 export default function DashboardLayout({ children, userRole }) {
+  const currentUser = JSON.parse(localStorage.getItem('user'))
+  const currentUserId = currentUser?.id
   const location = useLocation()
   const { darkMode, toggleDarkMode } = useTheme()
   const [unreadCount, setUnreadCount] = useState(0)
@@ -28,7 +30,7 @@ export default function DashboardLayout({ children, userRole }) {
 
   const loadUnreadCount = async () => {
     try {
-      const response = await api.getUnreadCount(1) // Mock user ID
+      const response = await api.getUnreadCount(currentUserId)
       if (response.success) {
         setUnreadCount(response.count)
       }
@@ -39,8 +41,7 @@ export default function DashboardLayout({ children, userRole }) {
 
   const loadNotificationCount = async () => {
     try {
-      const userId = userRole === 'academician' ? 2 : 1
-      const response = await api.getNotificationUnreadCount(userId)
+      const response = await api.getNotificationUnreadCount(currentUserId)
       if (response.success) {
         setNotificationUnreadCount(response.count)
       }
@@ -51,8 +52,7 @@ export default function DashboardLayout({ children, userRole }) {
 
   const loadProfile = async () => {
     try {
-      const profileId = userRole === 'academician' ? 2 : 1
-      const response = await api.getProfile(profileId)
+      const response = await api.getProfile(currentUserId)
       if (response.success) {
         setProfile(response.data)
       }
@@ -159,7 +159,7 @@ export default function DashboardLayout({ children, userRole }) {
                 </button>
 
                 <NotificationDropdown
-                  userId={userRole === 'academician' ? 2 : 1}
+                  userId={currentUserId}
                   isOpen={showNotifications}
                   onClose={() => setShowNotifications(false)}
                 />

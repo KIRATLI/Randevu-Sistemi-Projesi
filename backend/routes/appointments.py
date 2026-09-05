@@ -1,13 +1,16 @@
 import json
+import traceback
 
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from core.models import Appointment, Availability
+from core.models import Appointment, Availability, AbstractCustomUser
 from core.utils.decorators import token_required, role_required
 from core.utils.email_service import send_templated_email
 from core.utils.paginator import paginate_queryset
 from core.utils.response_helpers import api_error, api_success
+from django.utils import timezone
+from datetime import datetime
 
 
 # Appointments view (separating GET and POST)
@@ -85,7 +88,8 @@ def list_appointments_view(request):
 
     paginated_data['items'] = data
 
-    return api_success(paginated_data)
+    #TODO frontend henüz pagination desteklemiyor.
+    return api_success(paginated_data['items'])
 
 
 # Appointment Details
@@ -150,6 +154,8 @@ def create_appointment_view(request):
         if not all([aca_id, req_date, req_time, subject]):
             return api_error("academicianId, date, time, subject gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
 
+        student = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
         # 2. Uygun Slotu Bul
         slot = Availability.objects.filter(
             academician_id=aca_id,
@@ -160,19 +166,24 @@ def create_appointment_view(request):
         if not slot:
             return api_error("Seçilen hoca, gün ve saat için uygun müsaitlik bulunamadı", "SLOT_NOT_FOUND", status=404)
 
+        slot_datetime = timezone.make_aware(datetime.combine(slot.date, slot.start_time))
+        if slot_datetime < timezone.now():
+            return api_error("Geçmiş tarihli randevu oluşturamazsınız", "SLOT_EXPIRED", status=400)
+
         # 3. Müsaitlik Kontrolü
         if not slot.is_available():
             return api_error("Maalesef bu randevu az önce doldu", "SLOT_OCCUPIED", status=400)
 
         # 4. Randevuyu Kaydet
-        # NOT: request.user'ın dolu olması için login olunmuş olmalı.
-        # Eğer test yapıyorsan request.user yerine geçici bir User objesi verebilirsin.
         appointment = Appointment.objects.create(
-            student=request.user,
+            student=student,
             academician_id=aca_id,
             availability=slot,
+            date=slot.date,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
             subject=subject,
-            notes=notes
+            note_message=notes
         )
 
         return api_success(
@@ -190,6 +201,7 @@ def create_appointment_view(request):
         )
 
     except Exception as e:
+        traceback.print_exc()
         return api_error(f"Randevu oluşturulurken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
@@ -209,13 +221,15 @@ def approve_appointment_view(request):
         if not appointment_id:
             return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
+        academician = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
         # 1. Randevuyu bul (select_related ile hocayı da çekebiliriz güvenlik kontrolü için)
         appointment = Appointment.objects.filter(id=appointment_id).first()
 
         if not appointment:
             return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
 
-        if appointment.academician != request.user:
+        if appointment.academician != academician:
             return api_error("Bu randevuyu onaylama yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
 
         # 2. Durumu güncelle
@@ -236,6 +250,7 @@ def approve_appointment_view(request):
         return api_success(message="Randevu onaylandı")
 
     except Exception as e:
+        traceback.print_exc()
         return api_error(f"Randevu onaylanırken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
@@ -256,13 +271,15 @@ def reject_appointment_view(request):
         if not appointment_id:
             return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
+        academician = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
         # 1. Randevuyu bul
         appointment = Appointment.objects.filter(id=appointment_id).first()
 
         if not appointment:
             return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
 
-        if appointment.academician != request.user:
+        if appointment.academician != academician:
             return api_error("Bu randevuyu reddetme yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
 
         # 2. Durumu güncelle ve gerekçeyi notlara/reason alanına işle
@@ -290,6 +307,7 @@ def reject_appointment_view(request):
         return api_success(message="Randevu reddedildi")
 
     except Exception as e:
+        traceback.print_exc()
         return api_error(f"Randevu reddedilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
 
 
@@ -312,13 +330,15 @@ def cancel_appointment_view(request):
         if not appointment_id:
             return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
 
+        academician = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
         # 1. Randevuyu bul
         appointment = Appointment.objects.filter(id=appointment_id).first()
 
         if not appointment:
             return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
 
-        if appointment.academician != request.user:
+        if appointment.academician != academician:
             return api_error("Bu randevuyu iptal etme yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
 
         # 2. Daha önce iptal edilmiş veya tamamlanmış mı kontrolü
@@ -352,4 +372,5 @@ def cancel_appointment_view(request):
         return api_success(message="Randevu iptal edildi")
 
     except Exception as e:
+        traceback.print_exc()
         return api_error(f"Randevu iptal edilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)

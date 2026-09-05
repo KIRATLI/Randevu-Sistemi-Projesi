@@ -1,5 +1,6 @@
 ﻿from decimal import Decimal
 
+import django.contrib.auth.models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.db import models
@@ -79,13 +80,13 @@ class AbstractCustomUser(AbstractUser):
 # MANAGERS
 #=========
 
-class StudentManager(models.Manager):
+class StudentManager(django.contrib.auth.models.UserManager):
     """Manager that only returns students"""
     def get_queryset(self):
         return super().get_queryset().filter(role='student')
 
 
-class AcademicianManager(models.Manager):
+class AcademicianManager(django.contrib.auth.models.UserManager):
     """Manager that only returns academicians"""
     def get_queryset(self):
         return super().get_queryset().filter(role='academician')
@@ -206,7 +207,7 @@ class Academician(AbstractCustomUser):
     title = models.CharField(max_length=50, blank=True, null=True)
     office = models.CharField(max_length=100, blank=True, null=True)
     specializations = models.ManyToManyField(Specialization, blank=True)
-    #available = models.BooleanField(default=True) is it a field or result of a availability check?
+    #schedule
     
     objects = AcademicianManager()
     

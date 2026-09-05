@@ -2,24 +2,46 @@
 from django.utils import timezone
 from django.db import models
 
-class AvailabilityManager(models.Manager):
+class AvailabilityQuerySet(models.QuerySet):
     def available(self):
         return self.filter(appointment__isnull=True)
-    
+
     def booked(self):
         return self.filter(appointment__isnull=False)
-    
+
     def upcoming(self):
         return self.filter(date__gte=timezone.now().date())
 
     def past(self):
         return self.filter(date__lt=timezone.now().date())
-    
+
     def for_teacher(self, teacher):
         return self.filter(academician=teacher)
-    
+
     def available_upcoming(self):
         return self.available().filter(date__gte=timezone.now().date())
+
+class AvailabilityManager(models.Manager):
+    def get_queryset(self):
+        return AvailabilityQuerySet(self.model, using=self._db)
+
+    def available(self):
+        return self.get_queryset().filter(appointment__isnull=True)
+    
+    def booked(self):
+        return self.get_queryset().filter(appointment__isnull=False)
+    
+    def upcoming(self):
+        return self.get_queryset().filter(date__gte=timezone.now().date())
+
+    def past(self):
+        return self.get_queryset().filter(date__lt=timezone.now().date())
+    
+    def for_teacher(self, teacher):
+        return self.get_queryset().filter(academician=teacher)
+    
+    def available_upcoming(self):
+        return self.get_queryset().available().filter(date__gte=timezone.now().date())
 
 #===
 

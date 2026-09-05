@@ -32,7 +32,7 @@ class APIErrorMiddleware:
         response = self.get_response(request)
         return response
 
-    def process_exception(self, exception, request):
+    def process_exception(self, request, exception):
         # Beklenmedik tüm API hatalarını yakalar ve JSON döner
         if request.path.startswith('/api/'):
             return api_error(

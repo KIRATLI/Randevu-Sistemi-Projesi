@@ -60,7 +60,6 @@ const apiFetch = async (endpoint, data = null, method = 'GET') => {
   }
 }
 
-// Eski fakeFetch fonksiyonunu kaldırın ve apiFetch kullanın
 export const api = {
   // Auth
   login: (data) => apiFetch('/auth/login', data, 'POST'),
@@ -134,6 +133,18 @@ export const api = {
     }).then(res => res.json())
   },
   changePassword: (userId, oldPassword, newPassword) => apiFetch('/profile/change-password', { userId, oldPassword, newPassword }, 'POST'),
+
+  // Tickets (Support)
+  // -- Kullanıcı (Student / Academician) tarafı --
+  getMyTickets: (filters) => apiFetch('/tickets/my', filters, 'GET'),             // Sadece giriş yapan kullanıcının kendi ticket'larını döner
+  getTicket: (ticketId) => apiFetch(`/tickets/${ticketId}`),                      // Tek ticket detayı (yanıtlarıyla birlikte)
+  createTicket: (data) => apiFetch('/tickets', data, 'POST'),                     // Yeni destek talebi oluştur
+  replyTicket: (ticketId, message) => apiFetch(`/tickets/${ticketId}/reply`, { message }, 'POST'), // Ticket'a yanıt ekle
+
+  // -- Admin tarafı --
+  getTickets: (filters) => apiFetch('/tickets', filters, 'GET'),                  // Tüm ticket'ları (filtreli) listele
+  updateTicketStatus: (ticketId, status) => apiFetch(`/tickets/${ticketId}/status`, { status }, 'PATCH'), // Ticket durumunu güncelle (open/in_progress/resolved/closed)
+  getTicketStats: () => apiFetch('/tickets/stats'),                               // Toplam/açık/devam/çözüldü sayıları
 
   // Notifications
   getNotifications: (userId) => apiFetch('/notifications', { userId }, 'GET'),

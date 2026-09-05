@@ -1,4 +1,5 @@
 import json
+import traceback
 
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -26,52 +27,57 @@ def get_profile_view(request):
 
     user_id = request.GET.get('userId')
     # select_related ile profile ve academician bilgilerini tek seferde çekmeye çalışıyoruz
-    user = get_object_or_404(AbstractCustomUser, id=user_id)
-    profile = user.profile # Profile her zaman var (Signals ile oluşturduğumuzu varsayıyoruz)
+    try:
+        user = get_object_or_404(AbstractCustomUser, id=user_id)
+        profile = user.profile # Profile her zaman var (Signals ile oluşturduğumuzu varsayıyoruz)
 
-    # Her iki rol için ortak veriler
-    data = {
+        # Her iki rol için ortak veriler
+        data = {
         "id": profile.id,
-        "userId": user.id,
-        "name": user.get_full_name() or user.username,
-        "email": user.email,
-        "role": user.role,
-        "department": user.department,
-        "faculty": user.faculty,
-        "phone": profile.phone,
-        "avatar": profile.avatar.url if profile.avatar else None,
-        "bio": profile.bio,
-    }
+            "userId": user.id,
+            "name": user.get_full_name() or user.username,
+            "email": user.email,
+            "role": user.role,
+            "department": user.department,
+            "faculty": user.faculty,
+            "phone": profile.phone,
+            "avatar": profile.avatar.url if profile.avatar else None,
+            "bio": profile.bio,
+        }
 
-    # Akademisyen özel verileri
-    # hasattr kontrolü ile 'academician' linkinin var olup olmadığını güvenle kontrol ediyoruz
-    if user.role == 'academician' and hasattr(user, 'academician'):
-        aca = user.academician
+        # Akademisyen özel verileri
+        # hasattr kontrolü ile 'academician' linkinin var olup olmadığını güvenle kontrol ediyoruz
+        if user.role == 'academician' and hasattr(user, 'academician'):
+            aca = user.academician
 
-        # Schedule üzerinden summary_text çekme
-        office_hours_text = "Henüz tanımlanmadı"
-        if hasattr(aca, 'schedule'):
-            office_hours_text = aca.schedule.summary_text
+            # Schedule üzerinden summary_text çekme
+            office_hours_text = "Henüz tanımlanmadı"
+            if hasattr(aca, 'schedule'):
+                office_hours_text = aca.schedule.summary_text
 
-        data.update({
-            "title": aca.title,
-            "registrationNo": user.number,
-            "office": aca.office,
-            "officeHours": office_hours_text, # Dinamik generate ettiğimiz metin!
-            "specializations": list(aca.specializations.all().values_list('name', flat=True))
-        })
+            data.update({
+                "title": aca.title,
+                "registrationNo": user.number,
+                "office": aca.office,
+                "officeHours": office_hours_text, # Dinamik generate ettiğimiz metin!
+                "specializations": list(aca.specializations.all().values_list('name', flat=True))
+            })
 
-    # Öğrenci özel verileri
-    elif user.role == 'student':
-        data.update({
-            "studentNo": user.number,
-            "enrollmentYear": getattr(profile, 'enrollment_year', None),
-            "birthDate": profile.birth_date,
-            "address": profile.address,
-            "emergencyContact": getattr(profile, 'emergency_contact', None),
-        })
+        # Öğrenci özel verileri
+        elif user.role == 'student':
+            data.update({
+                "studentNo": user.number,
+                "enrollmentYear": getattr(profile, 'enrollment_year', None),
+                "birthDate": profile.birth_date,
+                "address": profile.address,
+                "emergencyContact": getattr(profile, 'emergency_contact', None),
+            })
 
-    return api_success(data)
+        return api_success(data)
+    except Exception as e:
+        traceback.print_exc()
+        return api_error(f"Profil getirilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
+
 
 
 # Update profile (and user properties)

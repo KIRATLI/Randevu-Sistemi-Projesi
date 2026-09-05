@@ -47,7 +47,7 @@ export default function AcademicianList() {
       filtered = filtered.filter(a =>
         a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.specialization.toLowerCase().includes(searchQuery.toLowerCase())
+        a.specializations?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     }
 

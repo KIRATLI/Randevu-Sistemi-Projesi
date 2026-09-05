@@ -128,7 +128,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Istanbul'
 
 USE_I18N = True
 
@@ -153,6 +153,7 @@ EMAIL_HOST = os.getenv('EMAIL_HOST')
 EMAIL_PORT = os.getenv('EMAIL_PORT')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
 # VEYA sadece spesifik domainler için
 CORS_ALLOWED_ORIGINS = [
@@ -160,6 +161,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",  # Vite için alternatif adres
     "http://localhost:3000",  # Eski React projeleri için (tedbir amaçlı kalsın)
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_CREDENTIALS = True
 
 # İzin verilen metodlar
 CORS_ALLOW_METHODS = [

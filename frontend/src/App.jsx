@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { AuthProvider } from './contexts/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary'
 import { Toaster } from 'react-hot-toast'
 
@@ -67,53 +68,56 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <Router>
-            <Routes>
-              {/* Auth Routes */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/2fa" element={<TwoFactor />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+            <AuthProvider>
+              <Routes>
+                {/* Auth Routes */}
+                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/2fa" element={<TwoFactor />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Student Routes */}
-              <Route path="/student/dashboard" element={<StudentDashboard />} />
-              <Route path="/student/academicians" element={<AcademicianList />} />
-              <Route path="/student/academician/:id" element={<AcademicianProfile />} />
-              <Route path="/student/appointments" element={<StudentAppointments />} />
-              <Route path="/student/messages" element={<StudentMessages />} />
-              <Route path="/student/settings" element={<StudentSettings />} />
-              <Route path="/student/history" element={<StudentHistory />} />
-              <Route path="/student/notification-settings" element={<StudentNotificationSettings />} />
-              <Route path="/student/support" element={<StudentSupport />} />
+                {/* Student Routes */}
+                <Route path="/student/dashboard" element={<StudentDashboard />} />
+                <Route path="/student/academicians" element={<AcademicianList />} />
+                <Route path="/student/academician/:id" element={<AcademicianProfile />} />
+                <Route path="/student/appointments" element={<StudentAppointments />} />
+                <Route path="/student/messages" element={<StudentMessages />} />
+                <Route path="/student/settings" element={<StudentSettings />} />
+                <Route path="/student/history" element={<StudentHistory />} />
+                <Route path="/student/notification-settings" element={<StudentNotificationSettings />} />
+                <Route path="/student/support" element={<StudentSupport />} />
 
-              {/* Academician Routes */}
-              <Route path="/academician/dashboard" element={<AcademicianDashboard />} />
-              <Route path="/academician/schedule" element={<ScheduleSettings />} />
-              <Route path="/academician/appointments" element={<AcademicianAppointments />} />
-              <Route path="/academician/settings" element={<AcademicianSettings />} />
-              <Route path="/academician/support" element={<AcademicianSupport />} />
-              <Route path="/academician/students" element={<Students />} />
+                {/* Academician Routes */}
+                <Route path="/academician/dashboard" element={<AcademicianDashboard />} />
+                <Route path="/academician/schedule" element={<ScheduleSettings />} />
+                <Route path="/academician/appointments" element={<AcademicianAppointments />} />
+                <Route path="/academician/messages" element={<AcademicianMessages />} />
+                <Route path="/academician/settings" element={<AcademicianSettings />} />
+                <Route path="/academician/support" element={<AcademicianSupport />} />
+                <Route path="/academician/students" element={<Students />} />
 
-              {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<Users />} />
-              <Route path="/admin/faculties" element={<Faculties />} />
-              <Route path="/admin/departments" element={<Departments />} />
-              <Route path="/admin/appointments" element={<AdminAppointments />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
-              <Route path="/admin/announcements" element={<Announcements />} />
-              <Route path="/admin/notifications" element={<BulkNotifications />} />
-              <Route path="/admin/calendar" element={<CalendarView />} />
-              <Route path="/admin/email-templates" element={<EmailTemplates />} />
-              <Route path="/admin/tickets" element={<AdminTickets />} />
-              <Route path="/admin/reports" element={<Reports />} />
-              <Route path="/admin/messages" element={<AdminMessages />} />
+                {/* Admin Routes */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<Users />} />
+                <Route path="/admin/faculties" element={<Faculties />} />
+                <Route path="/admin/departments" element={<Departments />} />
+                <Route path="/admin/appointments" element={<AdminAppointments />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/announcements" element={<Announcements />} />
+                <Route path="/admin/notifications" element={<BulkNotifications />} />
+                <Route path="/admin/calendar" element={<CalendarView />} />
+                <Route path="/admin/email-templates" element={<EmailTemplates />} />
+                <Route path="/admin/tickets" element={<AdminTickets />} />
+                <Route path="/admin/reports" element={<Reports />} />
+                <Route path="/admin/messages" element={<AdminMessages />} />
 
-              {/* Not Found */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* Not Found */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
           </Router>
           <Toaster
             position="top-right"

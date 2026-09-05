@@ -27,7 +27,7 @@ def login_view(request):
         data = json.loads(request.body)
         email = data.get('email')
         password = data.get('password')
-        role = data.get('role')
+        #role = data.get('role')
 
         if not email or not password:
             return api_error("email ve password gereklidir", "REQUIRED_FIELD_MISSING", status=400)

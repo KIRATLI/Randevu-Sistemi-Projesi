@@ -17,9 +17,7 @@ export default function AcademicianDashboard() {
     try {
       const response = await api.getAppointments()
       if (response.success) {
-        // Filter by academician (mock: academicianId = 1)
-        const academicianAppointments = response.data.filter(apt => apt.academicianId === 1)
-        setAppointments(academicianAppointments)
+        setAppointments(response.data)
       }
     } catch (error) {
       console.error('Error loading appointments:', error)

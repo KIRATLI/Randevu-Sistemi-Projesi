@@ -6,7 +6,7 @@ from routes.messages import messages_view, get_thread_messages_view, mark_messag
 urlpatterns = [
     path('', messages_view, name="messages"),
 
-    path('threads/', get_thread_messages_view, name="thread-messages"),
+    path('thread/', get_thread_messages_view, name="thread-messages"),
 
     path('mark-read/', mark_message_read_view, name="message-mark-read"),
 

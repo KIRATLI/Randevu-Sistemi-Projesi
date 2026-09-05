@@ -1,0 +1,376 @@
+import json
+import traceback
+
+from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+
+from core.models import Appointment, Availability, AbstractCustomUser
+from core.utils.decorators import token_required, role_required
+from core.utils.email_service import send_templated_email
+from core.utils.paginator import paginate_queryset
+from core.utils.response_helpers import api_error, api_success
+from django.utils import timezone
+from datetime import datetime
+
+
+# Appointments view (separating GET and POST)
+@csrf_exempt
+@token_required
+def appointments_view(request):
+    if request.method == "GET":
+        return list_appointments_view(request)
+    elif request.method == "POST":
+        return create_appointment_view(request)
+    return api_error("Yalnızca GET ve POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+# Academician List
+
+def list_appointments_view(request):
+    if request.method != "GET":
+        return api_error("Yalnızca GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    # Requester info
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
+    # 1. Query Parametrelerini Al
+    user_id = request.GET.get('userId')
+    aca_id = request.GET.get('academicianId')
+    status = request.GET.get('status')
+    date = request.GET.get('date')
+
+    # 2. Dinamik Filtreleme Sözlüğü Oluştur
+    filters = {}
+
+    # 2.1. Güvenlik ve Yetki Kontrolü
+    if requester_role == 'admin':
+        if user_id: filters['student_id'] = user_id
+        if aca_id: filters['academician_id'] = aca_id
+    elif requester_role == 'student':
+        filters['student_id'] = requester_id
+        if aca_id: filters['academician_id'] = aca_id
+    elif requester_role == 'academician':
+        filters['academician_id'] = requester_id
+        if user_id: filters['student_id'] = user_id
+    else:
+        return api_error("Bilinmeyen rol erişimi engellendi.", "INVALID_ROLE", status=403)
+
+    if status:
+        filters['status'] = status
+    if date:
+        # Availability üzerinden tarihe ulaşıyoruz
+        filters['availability__date'] = date
+
+    # 3. Sorguyu Çalıştır (select_related kullanarak performansı artırıyoruz)
+    appointments = Appointment.objects.filter(**filters).select_related('student', 'academician', 'availability')
+
+    paginated_data = paginate_queryset(appointments, request)
+
+    data = []
+    for app in paginated_data['items']:
+        academician = app.academician
+
+        data.append({
+            "id": app.id,
+            "studentId": app.student.id,
+            "studentName": app.student.get_full_name() or app.student.username,
+            "studentNo": app.student.number,
+            "academicianId": academician.id,
+            "academicianName": academician.get_full_name() or academician.username,
+            "date": app.availability.date.strftime('%Y-%m-%d'),
+            "time": app.availability.start_time.strftime('%H:%M'),
+            "duration": app.availability.get_duration_minutes(),
+            "status": app.status,
+            "subject": app.subject,
+            "notes": app.note_message,
+            "createdAt": app.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+        })
+
+    paginated_data['items'] = data
+
+    #TODO frontend henüz pagination desteklemiyor.
+    return api_success(paginated_data['items'])
+
+
+# Appointment Details
+
+@token_required
+def appointment_detail_view(request, appointment_id):
+    if request.method != "GET":
+        return api_error("Yalnızca GET kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    # 1. Randevuyu bul, yoksa 404 dön
+    # select_related kullanarak öğrenci, hoca ve slot verilerini tek seferde çekiyoruz
+    app = get_object_or_404(
+        Appointment.objects.select_related('student', 'academician', 'availability'),
+        id=appointment_id
+    )
+
+    # 2. Yetki kontrolü
+    requester_id = request.user_payload.get('id')
+    requester_role = request.user_payload.get('role')
+
+    if requester_role != 'admin':
+        if requester_id != app.student_id and requester_id != app.academician_id:
+            return api_error("Bu randevu detaylarını görme yetkiniz yok.", "PERMISSION_DENIED", status=403)
+
+    academician = app.academician
+
+    # 3. Response verisini hazırla
+    data = {
+        "id": app.id,
+        "studentId": app.student.id,
+        "studentName": app.student.get_full_name() or app.student.username,
+        "academicianId": academician.id,
+        "academicianName": academician.get_full_name() or academician.username,
+        "date": app.availability.date.strftime('%Y-%m-%d'),
+        "time": app.availability.start_time.strftime('%H:%M'),
+        "duration": app.availability.get_duration_minutes(),
+        "status": app.status,
+        "subject": app.subject,
+        "notes": app.note_message,
+        "createdAt": app.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    }
+
+    return api_success(data)
+
+
+# Create Appointment
+
+def create_appointment_view(request):
+    if request.method != "POST":
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        # 1. Gelen Verileri Al
+        aca_id = data.get('academicianId')
+        req_date = data.get('date')
+        req_time = data.get('time')
+        subject = data.get('subject')
+        notes = data.get('notes', "")
+
+        if not all([aca_id, req_date, req_time, subject]):
+            return api_error("academicianId, date, time, subject gereklidir.", "REQUIRED_FIELD_MISSING", status=400)
+
+        student = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
+        # 2. Uygun Slotu Bul
+        slot = Availability.objects.filter(
+            academician_id=aca_id,
+            date=req_date,
+            start_time=req_time
+        ).first()
+
+        if not slot:
+            return api_error("Seçilen hoca, gün ve saat için uygun müsaitlik bulunamadı", "SLOT_NOT_FOUND", status=404)
+
+        slot_datetime = timezone.make_aware(datetime.combine(slot.date, slot.start_time))
+        if slot_datetime < timezone.now():
+            return api_error("Geçmiş tarihli randevu oluşturamazsınız", "SLOT_EXPIRED", status=400)
+
+        # 3. Müsaitlik Kontrolü
+        if not slot.is_available():
+            return api_error("Maalesef bu randevu az önce doldu", "SLOT_OCCUPIED", status=400)
+
+        # 4. Randevuyu Kaydet
+        appointment = Appointment.objects.create(
+            student=student,
+            academician_id=aca_id,
+            availability=slot,
+            date=slot.date,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
+            subject=subject,
+            note_message=notes
+        )
+
+        return api_success(
+            {
+                "id": appointment.id,
+                "status": appointment.status,
+                "academicianId": aca_id,
+                "date": req_date,
+                "time": req_time,
+                "subject": subject,
+                "createdAt": appointment.creation_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+            },
+            "Randevu talebi oluşturuldu",
+            status=201
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+        return api_error(f"Randevu oluşturulurken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
+
+
+# Approve Appointment (by Academician)
+
+@csrf_exempt
+@token_required
+@role_required(['academician','admin'])
+def approve_appointment_view(request):
+    if request.method != "POST":
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    try:
+        data = json.loads(request.body)
+        appointment_id = data.get('id')
+
+        if not appointment_id:
+            return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        academician = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
+        # 1. Randevuyu bul (select_related ile hocayı da çekebiliriz güvenlik kontrolü için)
+        appointment = Appointment.objects.filter(id=appointment_id).first()
+
+        if not appointment:
+            return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
+
+        if appointment.academician != academician:
+            return api_error("Bu randevuyu onaylama yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
+
+        # 2. Durumu güncelle
+        if appointment.status != 'pending':
+            return api_success(message="Bu randevu onay beklemiyor")
+
+        appointment.status = 'confirmed'
+        appointment.save()
+
+        context = {
+            'student_name': appointment.student.get_full_name() or appointment.student.username,
+            'academician_name': appointment.academician.get_full_name() or appointment.academician.username,
+            'date': appointment.availability.date.strftime('%Y-%m-%d'),
+            'time': appointment.availability.start_time.strftime('%H:%M'),
+        }
+        send_templated_email('appointment-approved', appointment.student.email, context)
+
+        return api_success(message="Randevu onaylandı")
+
+    except Exception as e:
+        traceback.print_exc()
+        return api_error(f"Randevu onaylanırken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
+
+
+# Reject Appointment (by Academician)
+
+@csrf_exempt
+@token_required
+@role_required(['academician','admin'])
+def reject_appointment_view(request):
+    if request.method != "POST":
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    try:
+        data = json.loads(request.body)
+        appointment_id = data.get('id')
+        reason = data.get('reason', "Gerekçe belirtilmedi")
+
+        if not appointment_id:
+            return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        academician = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
+        # 1. Randevuyu bul
+        appointment = Appointment.objects.filter(id=appointment_id).first()
+
+        if not appointment:
+            return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
+
+        if appointment.academician != academician:
+            return api_error("Bu randevuyu reddetme yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
+
+        # 2. Durumu güncelle ve gerekçeyi notlara/reason alanına işle
+        appointment.status = 'rejected'
+
+        # Reddetme bilgisini notların başına ekleyelim ki kaybolmasın
+        rejection_text = f"--- REDDEDİLDİ ---\nGerekçe: {reason}\n------------------\n"
+        if appointment.note_message:
+            appointment.note_message = rejection_text + appointment.note_message
+        else:
+            appointment.note_message = rejection_text
+
+        appointment.save()
+
+        context = {
+            'student_name': appointment.student.get_full_name(),
+            'academician_name': appointment.academician.get_full_name(),
+            'date': appointment.availability.date.strftime('%Y-%m-%d'),
+            'time': appointment.availability.start_time.strftime('%H:%M'),
+            'subject': appointment.subject,
+            'reason': data.get('reason', 'Belirtilmedi') # Akademisyenin yazdığı red sebebi
+        }
+        send_templated_email('appointment-rejected', appointment.student.email, context)
+
+        return api_success(message="Randevu reddedildi")
+
+    except Exception as e:
+        traceback.print_exc()
+        return api_error(f"Randevu reddedilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
+
+
+# Cancel Appointment
+
+@csrf_exempt
+@token_required
+@role_required(['academician', 'admin'])
+def cancel_appointment_view(request):
+    if request.method != "POST":
+        return api_error("Yalnızca POST kabul edilir.", "METHOD_NOT_ALLOWED", status=405)
+
+    requester_role = request.user_payload.get('role')
+
+    try:
+        data = json.loads(request.body)
+        appointment_id = data.get('id')
+        reason = data.get('reason', "İptal nedeni belirtilmedi")
+
+        if not appointment_id:
+            return api_error("id gereklidir", "REQUIRED_FIELD_MISSING", status=400)
+
+        academician = get_object_or_404(AbstractCustomUser, id=request.user_payload.get('id'))
+
+        # 1. Randevuyu bul
+        appointment = Appointment.objects.filter(id=appointment_id).first()
+
+        if not appointment:
+            return api_error("Randevu bulunamadı", "APPOINTMENT_NOT_FOUND", status=404)
+
+        if appointment.academician != academician:
+            return api_error("Bu randevuyu iptal etme yetkiniz yok", "APPOINTMENT_NO_PERMISSION", status=403)
+
+        # 2. Daha önce iptal edilmiş veya tamamlanmış mı kontrolü
+        if appointment.status in ['cancelled', 'completed']:
+            return api_error(f"Bu randevu zaten {appointment.get_status_display()}", "APPOINTMENT_IS_ARCHIVED", status=400)
+
+        # 3. Durumu güncelle ve iptal nedenini işle
+        appointment.status = 'cancelled'
+
+        cancel_text = f"--- İPTAL EDİLDİ ---\nNeden: {reason}\n------------------\n"
+        if appointment.note_message:
+            appointment.note_message = cancel_text + appointment.note_message
+        else:
+            appointment.note_message = cancel_text
+
+        appointment.save()
+
+        context = {
+            'student_name': appointment.student.get_full_name(),
+            'academician_name': appointment.academician.get_full_name(),
+            'date': appointment.availability.date.strftime('%Y-%m-%d'),
+            'time': appointment.availability.start_time.strftime('%H:%M'),
+            'cancelled_by': request.user_payload.get('role'), # İptal eden tarafın rolü
+            'reason': data.get('reason', 'Sebep belirtilmedi.')
+        }
+        send_templated_email('appointment-cancelled', appointment.student.email, context)
+
+        if requester_role == 'student':
+            send_templated_email('appointment-cancelled-by-student', appointment.academician.email, context)
+
+        return api_success(message="Randevu iptal edildi")
+
+    except Exception as e:
+        traceback.print_exc()
+        return api_error(f"Randevu iptal edilirken hata: {str(e)}", "INTERNAL_SERVER_ERROR", status=500)
